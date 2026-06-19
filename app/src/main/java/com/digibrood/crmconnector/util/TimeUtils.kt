@@ -1,6 +1,11 @@
 package com.digibrood.crmconnector.util
 
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -9,7 +14,7 @@ import java.util.TimeZone
 /** Date/time helpers for parsing server timestamps and computing day boundaries. */
 object TimeUtils {
 
-    private val isoFormats = listOf(
+    private val fallbackFormats = listOf(
         "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
         "yyyy-MM-dd'T'HH:mm:ssXXX",
         "yyyy-MM-dd'T'HH:mm:ss'Z'",
@@ -18,24 +23,37 @@ object TimeUtils {
     )
 
     /**
-     * Parses a server timestamp (ISO-8601 variants or epoch millis/seconds as a
-     * string) to epoch millis. Returns 0 if it cannot be parsed.
+     * Parses a server timestamp to epoch millis. Handles:
+     *  - epoch seconds/millis as a numeric string,
+     *  - ISO-8601 with offset (e.g. 2026-06-19T13:06:28+00:00) via java.time,
+     *  - "Z" UTC form, plain local date-times, and a space-separated form.
+     * Returns 0 if it cannot be parsed.
      */
     fun parseToEpochMillis(value: String?): Long {
         if (value.isNullOrBlank()) return 0L
+        val raw = value.trim()
 
         // Numeric epoch (seconds or millis).
-        value.toLongOrNull()?.let { num ->
+        raw.toLongOrNull()?.let { num ->
             return if (num < 100_000_000_000L) num * 1000L else num
         }
 
-        for (pattern in isoFormats) {
-            try {
-                val sdf = SimpleDateFormat(pattern, Locale.US)
-                if (pattern.endsWith("'Z'")) sdf.timeZone = TimeZone.getTimeZone("UTC")
-                return sdf.parse(value)?.time ?: continue
-            } catch (_: Exception) {
-                // try next pattern
+        // Preferred: java.time ISO parsing (robust for offsets like +00:00).
+        runCatching { return OffsetDateTime.parse(raw).toInstant().toEpochMilli() }
+        runCatching { return Instant.parse(raw).toEpochMilli() }
+        runCatching {
+            return LocalDateTime.parse(raw, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                .toInstant(ZoneOffset.UTC).toEpochMilli()
+        }
+
+        // Fallback: explicit SimpleDateFormat patterns (non-lenient).
+        for (pattern in fallbackFormats) {
+            runCatching {
+                val sdf = SimpleDateFormat(pattern, Locale.US).apply {
+                    isLenient = false
+                    if (pattern.endsWith("'Z'")) timeZone = TimeZone.getTimeZone("UTC")
+                }
+                return sdf.parse(raw)?.time ?: return@runCatching
             }
         }
         return 0L

@@ -10,6 +10,7 @@ import com.digibrood.crmconnector.data.repository.RecordingRepository
 import com.digibrood.crmconnector.data.repository.SettingsRepository
 import com.digibrood.crmconnector.data.repository.StatsRepository
 import com.digibrood.crmconnector.domain.model.DeviceStatus
+import com.digibrood.crmconnector.sync.SyncController
 import com.digibrood.crmconnector.sync.SyncManager
 import com.digibrood.crmconnector.util.ConnectivityObserver
 import com.digibrood.crmconnector.util.TimeUtils
@@ -52,6 +53,7 @@ class DashboardViewModel @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val connectivity: ConnectivityObserver,
     private val syncManager: SyncManager,
+    private val syncController: SyncController,
     private val prefs: SecurePrefs
 ) : ViewModel() {
 
@@ -89,11 +91,19 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(refreshing = true) }
 
+            // First make sure we have the latest status and settings.
             runCatching { deviceRepository.refreshStatus() }
             runCatching { settingsRepository.refreshSettings() }
 
             val status = deviceRepository.currentStatus()
             syncManager.applyStatus(status)
+
+            // If approved, immediately capture any new calls and push the queue so
+            // tapping Refresh gives instant results (rather than waiting for the
+            // background worker).
+            if (status == DeviceStatus.APPROVED) {
+                runCatching { syncController.runFullSync() }
+            }
 
             val remote = runCatching { statsRepository.fetchRemoteStats() }.getOrNull()
             val local = statsRepository.localStats()
