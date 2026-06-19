@@ -60,7 +60,7 @@ interface CrmApiService {
     suspend fun syncCalls(@Body body: CallSyncRequest): Response<CallSyncResponse>
 
     @GET("contacts/lookup")
-    suspend fun lookupContact(@Query("phone_number") phoneNumber: String): Response<ContactLookupResponse>
+    suspend fun lookupContact(@Query("phone") phoneNumber: String): Response<ContactLookupResponse>
 
     @POST("calls/remark")
     suspend fun saveRemark(@Body body: RemarkRequest): Response<RemarkResponse>

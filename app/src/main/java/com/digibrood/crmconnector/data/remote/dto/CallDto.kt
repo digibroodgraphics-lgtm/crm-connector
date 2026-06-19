@@ -13,20 +13,29 @@ data class CallSyncItem(
     @Json(name = "has_recording") val hasRecording: Boolean
 )
 
-/** POST /calls/sync request body. */
+/**
+ * POST /calls/sync request body. The CRM requires the "device_id" alongside the
+ * batch of calls so it can attribute and de-duplicate them.
+ */
 data class CallSyncRequest(
+    @Json(name = "device_id") val deviceId: String,
     @Json(name = "calls") val calls: List<CallSyncItem>
 )
 
-/** Per-call result returned by the CRM for a sync batch. */
+/** Per-call result optionally returned by the CRM for a sync batch. */
 data class CallSyncResult(
     @Json(name = "client_call_id") val clientCallId: String,
     @Json(name = "call_id") val callId: String? = null,
     @Json(name = "status") val status: String? = null
 )
 
-/** POST /calls/sync response body. */
+/**
+ * POST /calls/sync response body. The CRM returns "ok":true on success; the
+ * detailed per-call fields are optional, so a 2xx response is treated as the
+ * whole batch having been accepted.
+ */
 data class CallSyncResponse(
+    @Json(name = "ok") val ok: Boolean = true,
     @Json(name = "results") val results: List<CallSyncResult> = emptyList(),
     @Json(name = "synced") val synced: List<String> = emptyList()
 )

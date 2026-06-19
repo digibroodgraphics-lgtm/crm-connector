@@ -10,6 +10,7 @@ import com.digibrood.crmconnector.data.remote.dto.PresignRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
 import com.digibrood.crmconnector.di.UploadClient
 import com.digibrood.crmconnector.util.Constants
+import com.digibrood.crmconnector.util.DeviceInfoProvider
 import com.digibrood.crmconnector.util.RecordingScanner
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,7 @@ class RecordingRepository @Inject constructor(
     private val recordingDao: RecordingDao,
     private val scanner: RecordingScanner,
     private val prefs: SecurePrefs,
+    private val deviceInfo: DeviceInfoProvider,
     @UploadClient private val uploadClient: OkHttpClient
 ) {
 
@@ -109,6 +111,7 @@ class RecordingRepository @Inject constructor(
         val presign = safeApiCall(moshi) {
             api.presignRecording(
                 PresignRequest(
+                    deviceId = deviceInfo.deviceId,
                     clientCallId = rec.clientCallId,
                     fileName = rec.fileName,
                     mimeType = rec.mimeType,
@@ -134,6 +137,7 @@ class RecordingRepository @Inject constructor(
         val confirm = safeApiCall(moshi) {
             api.confirmRecording(
                 ConfirmRequest(
+                    deviceId = deviceInfo.deviceId,
                     recordingId = presignBody.recordingId,
                     objectKey = presignBody.objectKey,
                     clientCallId = rec.clientCallId,
@@ -142,7 +146,7 @@ class RecordingRepository @Inject constructor(
                 )
             )
         }
-        return if (confirm is NetworkResult.Success && confirm.data.success) {
+        return if (confirm is NetworkResult.Success && confirm.data.ok) {
             recordingDao.markUploaded(rec.id, presignBody.recordingId, presignBody.objectKey)
             true
         } else {

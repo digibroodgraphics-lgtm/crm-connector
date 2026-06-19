@@ -12,6 +12,7 @@ import com.digibrood.crmconnector.domain.model.CallType
 import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.util.CallLogReader
 import com.digibrood.crmconnector.util.CapturedCall
+import com.digibrood.crmconnector.util.DeviceInfoProvider
 import com.digibrood.crmconnector.util.TimeUtils
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,7 @@ class CallRepository @Inject constructor(
     private val callDao: CallDao,
     private val prefs: SecurePrefs,
     private val callLogReader: CallLogReader,
+    private val deviceInfo: DeviceInfoProvider,
     private val recordingRepository: RecordingRepository
 ) {
 
@@ -101,20 +103,20 @@ class CallRepository @Inject constructor(
             val now = System.currentTimeMillis()
             callDao.markState(batch.map { it.clientCallId }, CallEntity.SyncState.SYNCING, now)
 
-            val request = CallSyncRequest(calls = batch.map { it.toSyncItem() })
+            val request = CallSyncRequest(
+                deviceId = deviceInfo.deviceId,
+                calls = batch.map { it.toSyncItem() }
+            )
             when (val result = safeApiCall(moshi) { api.syncCalls(request) }) {
                 is NetworkResult.Success -> {
+                    // The CRM returns "ok":true and de-duplicates server-side, so a
+                    // 2xx response means the whole batch was accepted. If per-call
+                    // results are present, capture any server-assigned ids too.
                     val body = result.data
-                    val acknowledged = (body.synced + body.results.map { it.clientCallId }).toSet()
-                    body.results.forEach { r ->
-                        callDao.markSynced(r.clientCallId, r.callId)
-                    }
-                    batch.filter { it.clientCallId in acknowledged }.forEach {
-                        callDao.markSynced(it.clientCallId, null)
-                    }
-                    val notAcked = batch.filter { it.clientCallId !in acknowledged }
-                    if (notAcked.isNotEmpty()) {
-                        callDao.markState(notAcked.map { it.clientCallId }, CallEntity.SyncState.PENDING, now)
+                    val resultsById = body.results.associateBy { it.clientCallId }
+                    batch.forEach { call ->
+                        val serverId = resultsById[call.clientCallId]?.callId
+                        callDao.markSynced(call.clientCallId, serverId)
                     }
                     prefs.lastSyncEpochMs = now
                     if (batch.size < batchSize) break

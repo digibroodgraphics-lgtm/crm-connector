@@ -12,9 +12,12 @@ data class RegisterDeviceRequest(
     @Json(name = "app_version") val appVersion: String
 )
 
-/** POST /device/register response body. */
+/**
+ * POST /device/register and /device/change-number response body.
+ * The CRM reports the device state in a field named "status".
+ */
 data class RegisterDeviceResponse(
-    @Json(name = "device_status") val deviceStatus: String?,
+    @Json(name = "status") val deviceStatus: String?,
     @Json(name = "registered_number") val registeredNumber: String? = null,
     @Json(name = "activated_at") val activatedAt: String? = null,
     @Json(name = "message") val message: String? = null
@@ -26,12 +29,16 @@ data class ChangeNumberRequest(
     @Json(name = "device_id") val deviceId: String
 )
 
-/** GET /device/status response body. */
+/**
+ * GET /device/status response body.
+ * The CRM reports the device state in a field named "status".
+ */
 data class DeviceStatusResponse(
-    @Json(name = "device_status") val deviceStatus: String?,
+    @Json(name = "status") val deviceStatus: String?,
     @Json(name = "registered_number") val registeredNumber: String? = null,
     @Json(name = "activated_at") val activatedAt: String? = null,
     @Json(name = "call_popup_enabled") val callPopupEnabled: Boolean? = null,
+    @Json(name = "revoked") val revoked: Boolean? = null,
     @Json(name = "message") val message: String? = null
 )
 
@@ -43,8 +50,12 @@ data class HeartbeatRequest(
     @Json(name = "battery_level") val batteryLevel: Int? = null
 )
 
-/** POST /heartbeat response body. */
+/**
+ * POST /heartbeat response body. Reports current device state in "status" and an
+ * "action" hint ("stop"/"continue") for the client.
+ */
 data class HeartbeatResponse(
-    @Json(name = "device_status") val deviceStatus: String?,
+    @Json(name = "status") val deviceStatus: String?,
+    @Json(name = "action") val action: String? = null,
     @Json(name = "server_time") val serverTime: String? = null
 )

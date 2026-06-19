@@ -77,6 +77,7 @@ class DeviceRepository @Inject constructor(
             if (!body.activatedAt.isNullOrBlank()) {
                 prefs.activatedAtEpochMs = TimeUtils.parseToEpochMillis(body.activatedAt)
             }
+            ensureActivationTimestamp()
         }
         return result
     }
@@ -91,6 +92,7 @@ class DeviceRepository @Inject constructor(
         val result = safeApiCall(moshi) { api.heartbeat(request) }
         if (result is NetworkResult.Success) {
             result.data.deviceStatus?.let { prefs.deviceStatus = it }
+            ensureActivationTimestamp()
         }
         return result
     }
@@ -100,6 +102,18 @@ class DeviceRepository @Inject constructor(
         prefs.registeredNumber = data.registeredNumber ?: fallbackNumber
         if (!data.activatedAt.isNullOrBlank()) {
             prefs.activatedAtEpochMs = TimeUtils.parseToEpochMillis(data.activatedAt)
+        }
+        ensureActivationTimestamp()
+    }
+
+    /**
+     * Activation-forward guarantee: the first time the device is seen as APPROVED
+     * and no activation time is recorded yet, stamp it with "now". This ensures
+     * historical calls are never imported even if the backend omits activated_at.
+     */
+    private fun ensureActivationTimestamp() {
+        if (currentStatus() == DeviceStatus.APPROVED && prefs.activatedAtEpochMs <= 0L) {
+            prefs.activatedAtEpochMs = System.currentTimeMillis()
         }
     }
 

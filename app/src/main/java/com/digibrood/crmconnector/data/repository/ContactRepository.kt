@@ -8,6 +8,7 @@ import com.digibrood.crmconnector.data.remote.dto.ContactLookupResponse
 import com.digibrood.crmconnector.data.remote.dto.RemarkRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
 import com.digibrood.crmconnector.util.ContactReader
+import com.digibrood.crmconnector.util.DeviceInfoProvider
 import com.digibrood.crmconnector.util.PhoneUtils
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ class ContactRepository @Inject constructor(
     private val api: CrmApiService,
     private val moshi: Moshi,
     private val remarkDao: RemarkDao,
+    private val deviceInfo: DeviceInfoProvider,
     private val contactReader: ContactReader
 ) {
 
@@ -64,14 +66,15 @@ class ContactRepository @Inject constructor(
     ): Boolean = withContext(Dispatchers.IO) {
         val normalized = PhoneUtils.normalize(phoneNumber)
         val request = RemarkRequest(
+            deviceId = deviceInfo.deviceId,
             clientCallId = clientCallId,
-            phoneNumber = normalized,
+            phone = normalized,
             contactName = contactName?.takeIf { it.isNotBlank() },
             remark = remark,
             status = status?.takeIf { it.isNotBlank() }
         )
         val result = safeApiCall(moshi) { api.saveRemark(request) }
-        if (result is NetworkResult.Success && result.data.success) {
+        if (result is NetworkResult.Success) {
             true
         } else {
             remarkDao.insert(
@@ -95,15 +98,16 @@ class ContactRepository @Inject constructor(
             val result = safeApiCall(moshi) {
                 api.saveRemark(
                     RemarkRequest(
+                        deviceId = deviceInfo.deviceId,
                         clientCallId = entity.clientCallId,
-                        phoneNumber = entity.phoneNumber,
+                        phone = entity.phoneNumber,
                         contactName = entity.contactName,
                         remark = entity.remark,
                         status = entity.status
                     )
                 )
             }
-            if (result is NetworkResult.Success && result.data.success) {
+            if (result is NetworkResult.Success) {
                 remarkDao.markState(entity.id, RemarkEntity.SyncState.SYNCED)
             } else {
                 remarkDao.markState(entity.id, RemarkEntity.SyncState.FAILED)

@@ -31,7 +31,11 @@ class SettingsRepository @Inject constructor(
             val body = result.data
             body.callPopupEnabled?.let { prefs.callPopupEnabled = it }
             body.recordingPath?.let { prefs.recordingPathOverride = it }
-            body.syncIntervalMinutes?.takeIf { it > 0 }?.let { syncIntervalMinutes = it }
+            // The CRM expresses cadence as heartbeat_interval_sec; derive the
+            // periodic sync interval in minutes (WorkManager minimum is 15).
+            body.heartbeatIntervalSec?.takeIf { it > 0 }?.let {
+                syncIntervalMinutes = (it / 60L).coerceAtLeast(Constants.DEFAULT_SYNC_INTERVAL_MINUTES)
+            }
         }
         return result
     }
