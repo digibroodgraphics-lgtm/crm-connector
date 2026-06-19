@@ -194,6 +194,20 @@ private fun DiagnosticsCard(state: DashboardUiState) {
             DiagRow("Calls visible on phone", state.diagCallsVisible.toString())
             DiagRow("Calls after activation", state.diagCallsAfterActivation.toString())
             DiagRow("Latest call on phone", state.diagLatestCall)
+            state.diagLastCrash?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Last crash:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = StatusRed
+                )
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = StatusRed
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "Share these values if calls aren't syncing.",

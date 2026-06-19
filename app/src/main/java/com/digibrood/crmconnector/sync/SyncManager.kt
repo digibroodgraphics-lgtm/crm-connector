@@ -31,12 +31,14 @@ class SyncManager @Inject constructor(
 
     fun startSync() {
         if (!permissionManager.areCorePermissionsGranted()) return
-        SyncForegroundService.start(context)
-        scheduler.startAll()
+        // Starting a foreground service can throw on Android 12+ if the app is not
+        // in an allowed state; never let that crash the app.
+        runCatching { SyncForegroundService.start(context) }
+        runCatching { scheduler.startAll() }
     }
 
     fun stopSync() {
-        scheduler.cancelAll()
-        SyncForegroundService.stop(context)
+        runCatching { scheduler.cancelAll() }
+        runCatching { SyncForegroundService.stop(context) }
     }
 }

@@ -117,6 +117,9 @@ class DeviceRepository @Inject constructor(
         }
     }
 
+    /** Public hook so callers can guarantee activation is set when approved. */
+    fun ensureActivatedIfApproved() = ensureActivationTimestamp()
+
     private fun readBatteryLevel(): Int? = try {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.takeIf { it in 0..100 }

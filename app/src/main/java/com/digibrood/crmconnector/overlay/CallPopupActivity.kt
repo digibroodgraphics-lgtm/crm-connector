@@ -32,7 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.digibrood.crmconnector.R
 import com.digibrood.crmconnector.ui.theme.CrmConnectorTheme
 import com.digibrood.crmconnector.util.Constants
@@ -54,7 +54,7 @@ class CallPopupActivity : ComponentActivity() {
 
         setContent {
             CrmConnectorTheme {
-                val vm: CallPopupViewModel = viewModel()
+                val vm: CallPopupViewModel = hiltViewModel()
                 val state by vm.state.collectAsStateWithLifecycle()
 
                 androidx.compose.runtime.LaunchedEffect(Unit) {

@@ -14,11 +14,11 @@ import javax.inject.Singleton
  * Used for device registration and the heartbeat payload.
  */
 @Singleton
+@SuppressLint("HardwareIds")
 class DeviceInfoProvider @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    @SuppressLint("HardwareIds")
     val deviceId: String by lazy {
         val androidId = Settings.Secure.getString(
             context.contentResolver,

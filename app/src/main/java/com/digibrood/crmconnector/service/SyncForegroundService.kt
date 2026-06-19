@@ -58,13 +58,19 @@ class SyncForegroundService : LifecycleService() {
     }
 
     private fun startAsForeground() {
-        val notification = notificationHelper.buildSyncNotification()
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-        } else {
-            0
+        try {
+            val notification = notificationHelper.buildSyncNotification()
+            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            } else {
+                0
+            }
+            ServiceCompat.startForeground(this, Constants.SYNC_NOTIFICATION_ID, notification, type)
+        } catch (t: Throwable) {
+            // e.g. ForegroundServiceStartNotAllowedException on Android 12+/Samsung.
+            // Background sync still proceeds via WorkManager; just stop the service.
+            runCatching { stopSelf() }
         }
-        ServiceCompat.startForeground(this, Constants.SYNC_NOTIFICATION_ID, notification, type)
     }
 
     private fun observeConnectivity() {

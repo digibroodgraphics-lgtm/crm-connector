@@ -14,6 +14,7 @@ import com.digibrood.crmconnector.sync.SyncController
 import com.digibrood.crmconnector.sync.SyncManager
 import com.digibrood.crmconnector.util.ConnectivityObserver
 import com.digibrood.crmconnector.util.CallLogReader
+import com.digibrood.crmconnector.util.CrashReporter
 import com.digibrood.crmconnector.util.PermissionManager
 import com.digibrood.crmconnector.util.TimeUtils
 import android.Manifest
@@ -43,7 +44,8 @@ data class DashboardUiState(
     val diagActivation: String = "-",
     val diagCallsVisible: Int = 0,
     val diagCallsAfterActivation: Int = 0,
-    val diagLatestCall: String = "-"
+    val diagLatestCall: String = "-",
+    val diagLastCrash: String? = null
 ) {
     val pendingTotal: Int get() = pendingCalls + pendingRecordings
 }
@@ -65,6 +67,7 @@ class DashboardViewModel @Inject constructor(
     private val syncController: SyncController,
     private val permissionManager: PermissionManager,
     private val callLogReader: CallLogReader,
+    private val crashReporter: CrashReporter,
     private val prefs: SecurePrefs
 ) : ViewModel() {
 
@@ -100,7 +103,7 @@ class DashboardViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            _state.update { it.copy(refreshing = true) }
+            _state.update { it.copy(refreshing = true, diagLastCrash = crashReporter.lastCrashSummary()) }
 
             // First make sure we have the latest status and settings.
             runCatching { deviceRepository.refreshStatus() }
@@ -108,6 +111,7 @@ class DashboardViewModel @Inject constructor(
 
             val status = deviceRepository.currentStatus()
             syncManager.applyStatus(status)
+            deviceRepository.ensureActivatedIfApproved()
 
             // If approved, immediately capture any new calls and push the queue so
             // tapping Refresh gives instant results (rather than waiting for the
@@ -149,7 +153,8 @@ class DashboardViewModel @Inject constructor(
                     diagActivation = if (activatedAt > 0L) (TimeUtils.formatReadable(activatedAt) ?: "-") else "not set",
                     diagCallsVisible = visibleCalls.size,
                     diagCallsAfterActivation = afterActivation,
-                    diagLatestCall = TimeUtils.formatReadable(latestCall) ?: "-"
+                    diagLatestCall = TimeUtils.formatReadable(latestCall) ?: "-",
+                    diagLastCrash = crashReporter.lastCrashSummary()
                 )
             }
         }
