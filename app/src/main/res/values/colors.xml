@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Brand palette -->
+    <color name="brand_primary">#1565C0</color>
+    <color name="brand_primary_dark">#0D47A1</color>
+    <color name="brand_accent">#00ACC1</color>
+
+    <!-- Adaptive launcher icon background -->
+    <color name="ic_launcher_background">#1565C0</color>
+
+    <!-- Splash background -->
+    <color name="splash_background">#0D47A1</color>
+
+    <!-- Status colors -->
+    <color name="status_green">#2E7D32</color>
+    <color name="status_amber">#F9A825</color>
+    <color name="status_red">#C62828</color>
+</resources>
