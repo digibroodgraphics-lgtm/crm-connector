@@ -21,6 +21,12 @@ data class CapturedCall(
 /**
  * Reads call entries from the system [CallLog]. Activation-forward only: callers
  * always pass a `since` timestamp so historical calls are never imported.
+ *
+ * Note: the result count is capped in code rather than via a "LIMIT" clause in
+ * the sort order, because some OEM call-log providers (e.g. Samsung) reject
+ * "LIMIT" in the sortOrder argument with "IllegalArgumentException: Invalid
+ * token LIMIT". The whole read is also wrapped defensively so a provider quirk
+ * can never crash the app.
  */
 @Singleton
 class CallLogReader @Inject constructor(
@@ -33,91 +39,76 @@ class CallLogReader @Inject constructor(
 
     /**
      * Returns calls whose start time is strictly after [sinceMillis], oldest
-     * first. Empty if the permission is not granted.
+     * first, capped at [limit]. Empty if the permission is not granted or on any
+     * provider error.
      */
     fun readCallsSince(sinceMillis: Long, limit: Int = 200): List<CapturedCall> {
         if (!hasPermission()) return emptyList()
-
-        val projection = arrayOf(
-            CallLog.Calls.NUMBER,
-            CallLog.Calls.DATE,
-            CallLog.Calls.DURATION,
-            CallLog.Calls.TYPE
+        return query(
+            selection = "${CallLog.Calls.DATE} > ?",
+            selectionArgs = arrayOf(sinceMillis.toString()),
+            sortOrder = "${CallLog.Calls.DATE} ASC",
+            limit = limit
         )
-        val selection = "${CallLog.Calls.DATE} > ?"
-        val selectionArgs = arrayOf(sinceMillis.toString())
-        val sortOrder = "${CallLog.Calls.DATE} ASC LIMIT $limit"
-
-        val results = mutableListOf<CapturedCall>()
-        context.contentResolver.query(
-            CallLog.Calls.CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            sortOrder
-        )?.use { cursor ->
-            val numberIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.NUMBER)
-            val dateIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.DATE)
-            val durationIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.DURATION)
-            val typeIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.TYPE)
-
-            while (cursor.moveToNext()) {
-                val number = cursor.getString(numberIdx) ?: continue
-                val date = cursor.getLong(dateIdx)
-                val durationSec = cursor.getLong(durationIdx)
-                val type = cursor.getInt(typeIdx)
-                results.add(
-                    CapturedCall(
-                        phoneNumber = PhoneUtils.normalize(number),
-                        startTime = date,
-                        endTime = date + durationSec * 1000L,
-                        durationSeconds = durationSec,
-                        callType = CallType.fromCallLogType(type)
-                    )
-                )
-            }
-        }
-        return results
     }
 
     /** Returns the single most recent call, or null. */
     fun readMostRecentCall(): CapturedCall? {
         if (!hasPermission()) return null
-        return readCallsSince(0L, limit = 1).maxByOrNull { it.startTime }
-            ?: readAll(limit = 1).firstOrNull()
+        return query(
+            selection = null,
+            selectionArgs = null,
+            sortOrder = "${CallLog.Calls.DATE} DESC",
+            limit = 1
+        ).firstOrNull()
     }
 
-    private fun readAll(limit: Int): List<CapturedCall> {
+    private fun query(
+        selection: String?,
+        selectionArgs: Array<String>?,
+        sortOrder: String,
+        limit: Int
+    ): List<CapturedCall> {
         val projection = arrayOf(
             CallLog.Calls.NUMBER,
             CallLog.Calls.DATE,
             CallLog.Calls.DURATION,
             CallLog.Calls.TYPE
         )
-        val sortOrder = "${CallLog.Calls.DATE} DESC LIMIT $limit"
         val results = mutableListOf<CapturedCall>()
-        context.contentResolver.query(
-            CallLog.Calls.CONTENT_URI, projection, null, null, sortOrder
-        )?.use { cursor ->
-            val numberIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.NUMBER)
-            val dateIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.DATE)
-            val durationIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.DURATION)
-            val typeIdx = cursor.getColumnIndexOrThrow(CallLog.Calls.TYPE)
-            while (cursor.moveToNext()) {
-                val number = cursor.getString(numberIdx) ?: continue
-                val date = cursor.getLong(dateIdx)
-                val durationSec = cursor.getLong(durationIdx)
-                val type = cursor.getInt(typeIdx)
-                results.add(
-                    CapturedCall(
-                        phoneNumber = PhoneUtils.normalize(number),
-                        startTime = date,
-                        endTime = date + durationSec * 1000L,
-                        durationSeconds = durationSec,
-                        callType = CallType.fromCallLogType(type)
+        try {
+            context.contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                val numberIdx = cursor.getColumnIndex(CallLog.Calls.NUMBER)
+                val dateIdx = cursor.getColumnIndex(CallLog.Calls.DATE)
+                val durationIdx = cursor.getColumnIndex(CallLog.Calls.DURATION)
+                val typeIdx = cursor.getColumnIndex(CallLog.Calls.TYPE)
+                if (numberIdx < 0 || dateIdx < 0 || durationIdx < 0 || typeIdx < 0) {
+                    return emptyList()
+                }
+                while (cursor.moveToNext() && results.size < limit) {
+                    val number = cursor.getString(numberIdx) ?: continue
+                    val date = cursor.getLong(dateIdx)
+                    val durationSec = cursor.getLong(durationIdx)
+                    val type = cursor.getInt(typeIdx)
+                    results.add(
+                        CapturedCall(
+                            phoneNumber = PhoneUtils.normalize(number),
+                            startTime = date,
+                            endTime = date + durationSec * 1000L,
+                            durationSeconds = durationSec,
+                            callType = CallType.fromCallLogType(type)
+                        )
                     )
-                )
+                }
             }
+        } catch (_: Exception) {
+            // Provider quirk / revoked permission mid-read — return what we have.
         }
         return results
     }
