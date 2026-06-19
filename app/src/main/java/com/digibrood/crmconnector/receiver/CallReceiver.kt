@@ -51,32 +51,40 @@ class CallReceiver : BroadcastReceiver() {
         }
 
         when (state) {
-            TelephonyManager.EXTRA_STATE_RINGING,
+            TelephonyManager.EXTRA_STATE_RINGING -> {
+                wasInCall = true
+                lastState = state
+            }
+
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
                 wasInCall = true
+                wentOffHook = true
                 lastState = state
             }
 
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 if (wasInCall && lastState != TelephonyManager.EXTRA_STATE_IDLE) {
-                    onCallEnded(context)
+                    onCallEnded(context, connected = wentOffHook)
                 }
                 wasInCall = false
+                wentOffHook = false
                 lastState = TelephonyManager.EXTRA_STATE_IDLE
             }
         }
     }
 
-    private fun onCallEnded(context: Context) {
+    private fun onCallEnded(context: Context, connected: Boolean) {
         val status = DeviceStatus.fromApi(prefs.deviceStatus)
         if (status != DeviceStatus.APPROVED || prefs.activatedAtEpochMs <= 0L) return
 
-        // Capture + sync the just-ended call (and any recording) in the background.
+        // Always capture + sync the call log (including missed/rejected calls)
+        // and upload any recording.
         scheduler.requestImmediateSync()
         scheduler.requestRecordingUpload()
 
-        // Show the after-call popup if enabled by the CRM and overlay is allowed.
-        if (prefs.callPopupEnabled && permissionManager.canDrawOverlays()) {
+        // Only show the after-call popup for CONNECTED calls. Missed/rejected
+        // calls are still logged but never trigger a popup.
+        if (connected && prefs.callPopupEnabled && permissionManager.canDrawOverlays()) {
             CallPopupActivity.launch(context, lastNumber)
         }
         lastNumber = null
@@ -85,6 +93,7 @@ class CallReceiver : BroadcastReceiver() {
     companion object {
         @Volatile private var lastState: String? = null
         @Volatile private var wasInCall: Boolean = false
+        @Volatile private var wentOffHook: Boolean = false
         @Volatile private var lastNumber: String? = null
     }
 }

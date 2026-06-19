@@ -57,9 +57,13 @@ class TokenAuthenticator @Inject constructor(
                 prefs.saveTokens(body?.accessToken, body?.refreshToken, body?.expiresIn)
                 body?.accessToken
             } else {
+                // Refresh token is no longer valid (e.g. server redeployed / secret
+                // rotated). Clear the dead session so the app routes back to login.
+                prefs.clearTokensForReauth()
                 null
             }
         } catch (t: Throwable) {
+            // Transient/network error — keep the session and retry later.
             null
         }
     }

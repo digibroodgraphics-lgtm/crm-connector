@@ -111,17 +111,25 @@ class CallRepository @Inject constructor(
             )
             when (val result = safeApiCall(moshi) { api.syncCalls(request) }) {
                 is NetworkResult.Success -> {
-                    // The CRM returns "ok":true and de-duplicates server-side, so a
-                    // 2xx response means the whole batch was accepted. If per-call
-                    // results are present, capture any server-assigned ids too.
+                    // The CRM returns "ok":true and de-duplicates server-side. Mark
+                    // the batch as synced (terminal) and surface any per-call
+                    // rejections so they don't silently clog the queue.
                     val body = result.data
                     val resultsById = body.results.associateBy { it.clientCallId }
                     batch.forEach { call ->
-                        val serverId = resultsById[call.clientCallId]?.callId
-                        callDao.markSynced(call.clientCallId, serverId)
+                        callDao.markSynced(call.clientCallId, resultsById[call.clientCallId]?.callId)
                     }
                     prefs.lastSyncEpochMs = now
-                    prefs.lastSyncResult = "OK: ${batch.size} call(s) accepted (HTTP 2xx)"
+                    val rejected = body.results.filter {
+                        it.status.equals("rejected", true) || it.status.equals("error", true)
+                    }
+                    prefs.lastSyncResult = if (rejected.isEmpty()) {
+                        "OK: ${batch.size} call(s) accepted"
+                    } else {
+                        val reason = rejected.firstOrNull()?.reason
+                            ?: rejected.firstOrNull()?.status ?: "unknown"
+                        "OK: ${batch.size - rejected.size} accepted, ${rejected.size} rejected ($reason)"
+                    }
                     if (batch.size < batchSize) break
                 }
 

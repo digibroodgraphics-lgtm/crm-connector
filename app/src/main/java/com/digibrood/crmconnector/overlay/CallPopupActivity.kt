@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,19 +31,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.digibrood.crmconnector.R
 import com.digibrood.crmconnector.ui.theme.CrmConnectorTheme
 import com.digibrood.crmconnector.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * Transparent activity that hosts the after-call overlay popup. It is launched
- * by [com.digibrood.crmconnector.receiver.CallReceiver] when a call ends and the
- * CRM has the popup enabled. Requires the "display over other apps" permission.
+ * Transparent activity that hosts the after-call overlay popup. Launched by
+ * [com.digibrood.crmconnector.receiver.CallReceiver] when a connected call ends
+ * and the CRM has the popup enabled. Requires "display over other apps".
+ *
+ * Missed/rejected calls are still logged but do NOT show this popup.
  */
 @AndroidEntryPoint
 class CallPopupActivity : ComponentActivity() {
@@ -64,6 +69,8 @@ class CallPopupActivity : ComponentActivity() {
                 CallPopupContent(
                     state = state,
                     onNameChange = vm::onNameChange,
+                    onCompanyChange = vm::onCompanyChange,
+                    onPhoneChange = vm::onPhoneChange,
                     onRemarkChange = vm::onRemarkChange,
                     onSave = {
                         vm.save {
@@ -98,6 +105,8 @@ class CallPopupActivity : ComponentActivity() {
 private fun CallPopupContent(
     state: CallPopupUiState,
     onNameChange: (String) -> Unit,
+    onCompanyChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
     onRemarkChange: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
@@ -106,17 +115,22 @@ private fun CallPopupContent(
         modifier = Modifier
             .fillMaxSize()
             .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f))
-            .padding(24.dp),
+            .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Text(
-                    text = stringResourceCompat(R.string.popup_title),
-                    style = MaterialTheme.typography.titleLarge
+                    text = stringResource(R.string.popup_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(12.dp))
 
@@ -124,70 +138,61 @@ private fun CallPopupContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(20.dp).height(20.dp))
                         Spacer(Modifier.width(12.dp))
-                        Text(text = state.phoneNumber)
+                        Text(text = state.phoneNumber.ifBlank { stringResource(R.string.popup_unknown_contact) })
                     }
                 } else {
-                    Text(
-                        text = state.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (state.phoneNumber.isNotBlank()) {
-                        Text(
-                            text = state.phoneNumber,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    state.crmStatus?.let { status ->
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = stringResourceCompat(R.string.popup_label_status) + ": " + status,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                if (state.isUnknown && !state.loadingContact) {
                     OutlinedTextField(
                         value = state.contactName,
                         onValueChange = onNameChange,
-                        label = { Text(stringResourceCompat(R.string.popup_contact_name)) },
-                        placeholder = { Text(stringResourceCompat(R.string.popup_hint_name)) },
+                        label = { Text(stringResource(R.string.popup_contact_name)) },
+                        placeholder = { Text(stringResource(R.string.popup_hint_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = state.company,
+                        onValueChange = onCompanyChange,
+                        label = { Text(stringResource(R.string.popup_company)) },
+                        placeholder = { Text(stringResource(R.string.popup_hint_company)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = state.phoneNumber,
+                        onValueChange = onPhoneChange,
+                        label = { Text(stringResource(R.string.popup_phone)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = state.remark,
+                        onValueChange = onRemarkChange,
+                        label = { Text(stringResource(R.string.popup_label_remark)) },
+                        placeholder = { Text(stringResource(R.string.popup_hint_remark)) },
+                        modifier = Modifier.fillMaxWidth().height(96.dp)
+                    )
                 }
 
-                OutlinedTextField(
-                    value = state.remark,
-                    onValueChange = onRemarkChange,
-                    label = { Text(stringResourceCompat(R.string.popup_label_remark)) },
-                    placeholder = { Text(stringResourceCompat(R.string.popup_hint_remark)) },
-                    modifier = Modifier.fillMaxWidth().height(110.dp)
-                )
-
                 Spacer(Modifier.height(20.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     OutlinedButton(onClick = onDismiss, enabled = !state.saving) {
-                        Text(stringResourceCompat(R.string.popup_dismiss))
+                        Text(stringResource(R.string.popup_dismiss))
                     }
                     Spacer(Modifier.width(12.dp))
                     Button(onClick = onSave, enabled = !state.saving) {
-                        Text(stringResourceCompat(R.string.popup_save))
+                        Text(stringResource(R.string.popup_save))
                     }
                 }
             }
         }
     }
 }
-
-@Composable
-private fun stringResourceCompat(resId: Int): String =
-    androidx.compose.ui.res.stringResource(id = resId)

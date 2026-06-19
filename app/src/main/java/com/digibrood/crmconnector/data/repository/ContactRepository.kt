@@ -16,6 +16,14 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Resolved contact details for the after-call popup. */
+data class ContactDetails(
+    val found: Boolean,
+    val name: String?,
+    val company: String?,
+    val status: String?
+)
+
 /**
  * Contact lookups for the after-call popup and remark submission. Remarks are
  * queued locally and retried if the device is offline when the user saves them.
@@ -30,37 +38,42 @@ class ContactRepository @Inject constructor(
 ) {
 
     /**
-     * Looks up a phone number against the CRM. Falls back to the local contact
-     * name when the CRM cannot be reached, so the popup always shows something
-     * useful.
+     * Looks up a phone number against the CRM, returning the contact's name and
+     * company for pre-filling the popup. Falls back to the device's local contact
+     * name when the CRM is unreachable or errors, so the popup is always useful.
      */
-    suspend fun lookup(phoneNumber: String): ContactLookupResponse = withContext(Dispatchers.IO) {
+    suspend fun lookup(phoneNumber: String): ContactDetails = withContext(Dispatchers.IO) {
         val normalized = PhoneUtils.normalize(phoneNumber)
         when (val result = safeApiCall(moshi) { api.lookupContact(normalized) }) {
             is NetworkResult.Success -> {
-                val body = result.data
-                if (body.found || !body.contactName.isNullOrBlank()) {
-                    body
-                } else {
-                    body.copy(contactName = contactReader.displayNameFor(normalized))
-                }
+                val body: ContactLookupResponse = result.data
+                val name = body.effectiveName ?: contactReader.displayNameFor(normalized)
+                ContactDetails(
+                    found = body.found || !body.effectiveName.isNullOrBlank(),
+                    name = name,
+                    company = body.effectiveCompany,
+                    status = body.effectiveStatus
+                )
             }
-            else -> ContactLookupResponse(
+            else -> ContactDetails(
                 found = false,
-                contactName = contactReader.displayNameFor(normalized),
+                name = contactReader.displayNameFor(normalized),
+                company = null,
                 status = null
             )
         }
     }
 
     /**
-     * Sends a remark to the CRM. If the call fails, the remark is queued for a
-     * later retry and the method still reports success to the user.
+     * Sends a remark to the CRM (phone + optional name/company + note). If the
+     * call fails it is queued for retry; the method still reports success so the
+     * popup can close cleanly.
      */
     suspend fun saveRemark(
         clientCallId: String?,
         phoneNumber: String,
-        contactName: String?,
+        name: String?,
+        company: String?,
         remark: String,
         status: String?
     ): Boolean = withContext(Dispatchers.IO) {
@@ -69,7 +82,8 @@ class ContactRepository @Inject constructor(
             deviceId = deviceInfo.deviceId,
             clientCallId = clientCallId,
             phone = normalized,
-            contactName = contactName?.takeIf { it.isNotBlank() },
+            name = name?.takeIf { it.isNotBlank() },
+            company = company?.takeIf { it.isNotBlank() },
             remark = remark,
             status = status?.takeIf { it.isNotBlank() }
         )
@@ -81,7 +95,8 @@ class ContactRepository @Inject constructor(
                 RemarkEntity(
                     clientCallId = clientCallId,
                     phoneNumber = normalized,
-                    contactName = contactName,
+                    contactName = name,
+                    company = company,
                     remark = remark,
                     status = status
                 )
@@ -101,7 +116,8 @@ class ContactRepository @Inject constructor(
                         deviceId = deviceInfo.deviceId,
                         clientCallId = entity.clientCallId,
                         phone = entity.phoneNumber,
-                        contactName = entity.contactName,
+                        name = entity.contactName,
+                        company = entity.company,
                         remark = entity.remark,
                         status = entity.status
                     )

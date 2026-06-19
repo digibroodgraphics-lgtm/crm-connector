@@ -88,8 +88,11 @@
     <!-- Call popup -->
     <string name="popup_title">Call ended</string>
     <string name="popup_contact_name">Contact name</string>
+    <string name="popup_company">Company</string>
+    <string name="popup_phone">Phone number</string>
     <string name="popup_unknown_contact">Unknown number</string>
     <string name="popup_hint_name">Enter contact name</string>
+    <string name="popup_hint_company">Enter company name</string>
     <string name="popup_hint_remark">Add a remark about this call</string>
     <string name="popup_label_remark">Remark</string>
     <string name="popup_label_status">Status</string>

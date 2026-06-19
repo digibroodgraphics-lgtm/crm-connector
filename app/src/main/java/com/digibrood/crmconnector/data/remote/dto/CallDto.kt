@@ -26,7 +26,8 @@ data class CallSyncRequest(
 data class CallSyncResult(
     @Json(name = "client_call_id") val clientCallId: String,
     @Json(name = "call_id") val callId: String? = null,
-    @Json(name = "status") val status: String? = null
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "reason") val reason: String? = null
 )
 
 /**

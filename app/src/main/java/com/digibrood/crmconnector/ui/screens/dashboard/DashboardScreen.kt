@@ -25,9 +25,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -104,10 +108,16 @@ fun DashboardScreen(
                 value = state.lastSync ?: stringResource(R.string.status_never)
             )
 
-            Spacer(Modifier.height(16.dp))
-            DiagnosticsCard(state)
+            Spacer(Modifier.height(8.dp))
+            var showDiagnostics by remember { mutableStateOf(false) }
+            TextButton(onClick = { showDiagnostics = !showDiagnostics }) {
+                Text(if (showDiagnostics) "Hide diagnostics" else "Show diagnostics")
+            }
+            if (showDiagnostics) {
+                DiagnosticsCard(state)
+            }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
             OutlinedButton(
                 onClick = onChangeNumber,
                 modifier = Modifier.fillMaxWidth()

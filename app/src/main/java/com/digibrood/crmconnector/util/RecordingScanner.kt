@@ -18,9 +18,11 @@ data class RecordingFile(
 )
 
 /**
- * Locates call-recording files using both direct file-system scanning of the
- * common recording folders and a [MediaStore] query (which also surfaces files
- * on removable SD cards). A CRM-supplied path override is honoured.
+ * Locates *call-recording* files only — it deliberately ignores the general
+ * music library. It scans the common call-recording folders directly and also
+ * queries [MediaStore], but filters media-store hits to paths that look like
+ * call recordings (containing "record", "call" or "voice"). A [sinceMillis]
+ * cut-off keeps results to recordings created after device activation.
  */
 @Singleton
 class RecordingScanner @Inject constructor(
@@ -28,28 +30,29 @@ class RecordingScanner @Inject constructor(
 ) {
 
     /**
-     * Returns all recording files discovered across the default folders, any
-     * [extraPaths] (e.g. a CRM-supplied override) and the media store.
+     * Returns call-recording files discovered across the default folders, any
+     * [extraPaths] (e.g. a CRM-supplied override) and the media store, optionally
+     * limited to files modified at/after [sinceMillis].
      */
-    fun scan(extraPaths: List<String> = emptyList()): List<RecordingFile> {
+    fun scan(extraPaths: List<String> = emptyList(), sinceMillis: Long = 0L): List<RecordingFile> {
         val found = LinkedHashMap<String, RecordingFile>()
 
         (Constants.DEFAULT_RECORDING_PATHS + extraPaths)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .forEach { dirPath ->
-                scanDirectory(File(dirPath)).forEach { found[it.path] = it }
+                scanDirectory(File(dirPath), sinceMillis).forEach { found[it.path] = it }
             }
 
-        scanMediaStore().forEach { found.putIfAbsent(it.path, it) }
+        scanMediaStore(sinceMillis).forEach { found.putIfAbsent(it.path, it) }
 
         return found.values.toList()
     }
 
     /**
-     * Finds the recording most likely to belong to a call that started at
-     * [callStart] and ended at [callEnd]. Picks a supported file whose last
-     * modified time falls within a tolerance window of the call.
+     * Finds the recording most likely to belong to a call between [callStart] and
+     * [callEnd]. Only considers supported files whose last-modified time is within
+     * a tolerance window of the call.
      */
     fun findForCall(
         callStart: Long,
@@ -59,27 +62,25 @@ class RecordingScanner @Inject constructor(
     ): RecordingFile? {
         val windowStart = callStart - toleranceMs
         val windowEnd = callEnd + toleranceMs
-        return scan(extraPaths)
+        return scan(extraPaths, sinceMillis = windowStart)
             .filter { it.lastModified in windowStart..windowEnd }
             .minByOrNull { abs(it.lastModified - callEnd) }
     }
 
-    private fun scanDirectory(dir: File): List<RecordingFile> {
+    private fun scanDirectory(dir: File, sinceMillis: Long): List<RecordingFile> {
         return try {
             if (!dir.exists() || !dir.isDirectory) return emptyList()
             dir.walkTopDown()
                 .maxDepth(2)
-                .filter { it.isFile && isSupported(it.name) }
+                .filter { it.isFile && isSupported(it.name) && it.lastModified() >= sinceMillis }
                 .map { it.toRecordingFile() }
                 .toList()
-        } catch (_: SecurityException) {
-            emptyList()
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    private fun scanMediaStore(): List<RecordingFile> {
+    private fun scanMediaStore(sinceMillis: Long): List<RecordingFile> {
         val results = mutableListOf<RecordingFile>()
         val projection = arrayOf(
             MediaStore.Audio.Media.DATA,
@@ -106,16 +107,19 @@ class RecordingScanner @Inject constructor(
                     val name = if (nameIdx >= 0) cursor.getString(nameIdx) ?: "" else ""
                     if (!isSupported(name)) continue
                     val path = if (dataIdx >= 0) cursor.getString(dataIdx) ?: continue else continue
+                    if (!looksLikeRecording(path)) continue
+                    val dateSec = if (dateIdx >= 0) cursor.getLong(dateIdx) else 0L
+                    val lastModified = dateSec * 1000L
+                    if (lastModified < sinceMillis) continue
                     val size = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else 0L
                     val mime = if (mimeIdx >= 0) cursor.getString(mimeIdx) else null
-                    val dateSec = if (dateIdx >= 0) cursor.getLong(dateIdx) else 0L
                     results.add(
                         RecordingFile(
                             path = path,
                             name = name,
                             sizeBytes = size,
                             mimeType = mime ?: mimeFor(name),
-                            lastModified = dateSec * 1000L
+                            lastModified = lastModified
                         )
                     )
                 }
@@ -124,6 +128,12 @@ class RecordingScanner @Inject constructor(
             // MediaStore unavailable or permission missing; ignore.
         }
         return results
+    }
+
+    /** True only for paths that look like call recordings, not general music. */
+    private fun looksLikeRecording(path: String): Boolean {
+        val p = path.lowercase()
+        return p.contains("record") || p.contains("/call") || p.contains("voice")
     }
 
     private fun File.toRecordingFile() = RecordingFile(
@@ -145,6 +155,7 @@ class RecordingScanner @Inject constructor(
         "wav" -> "audio/wav"
         "amr" -> "audio/amr"
         "3gp" -> "audio/3gpp"
+        "ogg" -> "audio/ogg"
         else -> "application/octet-stream"
     }
 }

@@ -44,9 +44,9 @@ class RecordingRepository @Inject constructor(
 
     suspend fun uploadedTodayCount(since: Long): Int = recordingDao.uploadedSince(since)
 
-    /** Number of recording files currently discoverable on the device (diagnostics). */
+    /** Number of call-recording files discoverable on the device since activation (diagnostics). */
     suspend fun recordingFilesOnPhone(): Int = withContext(Dispatchers.IO) {
-        runCatching { scanner.scan(extraScanPaths()).size }.getOrDefault(0)
+        runCatching { scanner.scan(extraScanPaths(), prefs.activatedAtEpochMs).size }.getOrDefault(0)
     }
 
     private fun extraScanPaths(): List<String> {

@@ -41,7 +41,7 @@ object Constants {
         "/storage/emulated/0/Sounds/Call/"
     )
 
-    val SUPPORTED_RECORDING_EXTENSIONS = listOf("mp3", "m4a", "wav", "amr", "3gp")
+    val SUPPORTED_RECORDING_EXTENSIONS = listOf("mp3", "m4a", "wav", "amr", "3gp", "ogg")
 
     /**
      * Runtime permissions that must be granted before any sync work begins.

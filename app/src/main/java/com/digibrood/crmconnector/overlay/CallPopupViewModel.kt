@@ -12,26 +12,24 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** UI state for the after-call popup. */
+/** UI state for the after-call popup (Name, Company, Phone, Remark). */
 data class CallPopupUiState(
     val phoneNumber: String = "",
     val clientCallId: String? = null,
     val loadingContact: Boolean = true,
     val contactFound: Boolean = false,
     val contactName: String = "",
+    val company: String = "",
     val crmStatus: String? = null,
     val remark: String = "",
     val saving: Boolean = false,
     val saved: Boolean = false
-) {
-    val isUnknown: Boolean get() = !contactFound && contactName.isBlank()
-    val displayName: String
-        get() = contactName.ifBlank { PhoneUtils.displayOrUnknown(phoneNumber) }
-}
+)
 
 /**
- * Performs the CRM contact lookup for the just-ended call and submits the
- * remark. Remark submission queues offline automatically (see ContactRepository).
+ * Performs the CRM contact lookup for the just-ended call (pre-filling Name and
+ * Company) and submits the remark. Remark submission queues offline
+ * automatically (see ContactRepository).
  */
 @HiltViewModel
 class CallPopupViewModel @Inject constructor(
@@ -46,25 +44,23 @@ class CallPopupViewModel @Inject constructor(
         _state.update {
             it.copy(phoneNumber = normalized, clientCallId = clientCallId, loadingContact = true)
         }
-        if (normalized.isBlank()) {
-            _state.update { it.copy(loadingContact = false) }
-            return
-        }
         viewModelScope.launch {
-            val result = contactRepository.lookup(normalized)
+            val details = if (normalized.isBlank()) null else contactRepository.lookup(normalized)
             _state.update {
                 it.copy(
                     loadingContact = false,
-                    contactFound = result.found,
-                    contactName = result.contactName ?: "",
-                    crmStatus = result.status
+                    contactFound = details?.found ?: false,
+                    contactName = details?.name ?: it.contactName,
+                    company = details?.company ?: it.company,
+                    crmStatus = details?.status
                 )
             }
         }
     }
 
     fun onNameChange(value: String) = _state.update { it.copy(contactName = value) }
-
+    fun onCompanyChange(value: String) = _state.update { it.copy(company = value) }
+    fun onPhoneChange(value: String) = _state.update { it.copy(phoneNumber = value) }
     fun onRemarkChange(value: String) = _state.update { it.copy(remark = value) }
 
     fun save(onSaved: () -> Unit) {
@@ -75,7 +71,8 @@ class CallPopupViewModel @Inject constructor(
             contactRepository.saveRemark(
                 clientCallId = current.clientCallId,
                 phoneNumber = current.phoneNumber,
-                contactName = current.contactName.takeIf { it.isNotBlank() },
+                name = current.contactName,
+                company = current.company,
                 remark = current.remark,
                 status = current.crmStatus
             )

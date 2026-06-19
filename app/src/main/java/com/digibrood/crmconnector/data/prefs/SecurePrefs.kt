@@ -121,6 +121,21 @@ class SecurePrefs @Inject constructor(
         _loggedIn.value = false
     }
 
+    /**
+     * Clears only the JWT tokens so the app routes back to login for a fresh
+     * sign-in, while keeping the CRM origin, registered number and device status.
+     * Used when the refresh token is rejected (e.g. server redeploy / secret
+     * rotation) and the session can no longer be recovered automatically.
+     */
+    fun clearTokensForReauth() {
+        prefs.edit()
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
+            .remove(KEY_TOKEN_EXPIRY)
+            .apply()
+        _loggedIn.value = false
+    }
+
     companion object {
         private const val FILE_NAME = "crm_secure_prefs"
         private const val KEY_ACCESS_TOKEN = "access_token"
