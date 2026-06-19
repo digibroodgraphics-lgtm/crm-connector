@@ -34,9 +34,10 @@ data class RefreshResponse(
 /**
  * Standard error envelope returned by the CRM for non-2xx responses.
  * The [errorCode] field carries machine-readable values such as
- * APP_LOGIN_DISABLED and INVALID_CREDENTIALS.
+ * APP_LOGIN_DISABLED and INVALID_CREDENTIALS. The DIGIBROOD CRM returns this in
+ * a field named "code".
  */
 data class ApiError(
-    @Json(name = "error_code") val errorCode: String? = null,
+    @Json(name = "code") val errorCode: String? = null,
     @Json(name = "message") val message: String? = null
 )

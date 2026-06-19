@@ -48,13 +48,21 @@ class AuthRepository @Inject constructor(
         }) {
             is NetworkResult.Success -> {
                 val body = result.data
-                prefs.saveTokens(body.accessToken, body.refreshToken, body.expiresIn)
-                body.deviceStatus?.let { prefs.deviceStatus = it }
-                body.registeredNumber?.let { prefs.registeredNumber = it }
-                if (!body.activatedAt.isNullOrBlank()) {
-                    prefs.activatedAtEpochMs = TimeUtils.parseToEpochMillis(body.activatedAt)
+                if (body.accessToken.isNullOrBlank()) {
+                    // Signed in but no usable token field was found in the response.
+                    LoginResult.Error(
+                        "Signed in, but no login token was returned. Your CRM developer " +
+                            "should confirm the login response contains \"access_token\"."
+                    )
+                } else {
+                    prefs.saveTokens(body.accessToken, body.refreshToken, body.expiresIn)
+                    body.deviceStatus?.let { prefs.deviceStatus = it }
+                    body.registeredNumber?.let { prefs.registeredNumber = it }
+                    if (!body.activatedAt.isNullOrBlank()) {
+                        prefs.activatedAtEpochMs = TimeUtils.parseToEpochMillis(body.activatedAt)
+                    }
+                    LoginResult.Success(DeviceStatus.fromApi(body.deviceStatus))
                 }
-                LoginResult.Success(DeviceStatus.fromApi(body.deviceStatus))
             }
 
             is NetworkResult.ApiFailure -> {
