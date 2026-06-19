@@ -13,7 +13,10 @@ import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.sync.SyncController
 import com.digibrood.crmconnector.sync.SyncManager
 import com.digibrood.crmconnector.util.ConnectivityObserver
+import com.digibrood.crmconnector.util.CallLogReader
+import com.digibrood.crmconnector.util.PermissionManager
 import com.digibrood.crmconnector.util.TimeUtils
+import android.Manifest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +37,13 @@ data class DashboardUiState(
     val lastSync: String? = null,
     val pendingCalls: Int = 0,
     val pendingRecordings: Int = 0,
-    val refreshing: Boolean = false
+    val refreshing: Boolean = false,
+    // ---- Diagnostics (to pinpoint why calls may not capture) ----
+    val diagCallLogPermission: Boolean = false,
+    val diagActivation: String = "-",
+    val diagCallsVisible: Int = 0,
+    val diagCallsAfterActivation: Int = 0,
+    val diagLatestCall: String = "-"
 ) {
     val pendingTotal: Int get() = pendingCalls + pendingRecordings
 }
@@ -54,6 +63,8 @@ class DashboardViewModel @Inject constructor(
     private val connectivity: ConnectivityObserver,
     private val syncManager: SyncManager,
     private val syncController: SyncController,
+    private val permissionManager: PermissionManager,
+    private val callLogReader: CallLogReader,
     private val prefs: SecurePrefs
 ) : ViewModel() {
 
@@ -118,6 +129,13 @@ class DashboardViewModel @Inject constructor(
                 recordingsToday = local.recordingsUploadedToday
             }
 
+            // ---- Diagnostics ----
+            val hasCallLog = permissionManager.isGranted(Manifest.permission.READ_CALL_LOG)
+            val activatedAt = prefs.activatedAtEpochMs
+            val visibleCalls = if (hasCallLog) callLogReader.readCallsSince(0L, limit = 500) else emptyList()
+            val afterActivation = visibleCalls.count { it.startTime > activatedAt }
+            val latestCall = visibleCalls.maxByOrNull { it.startTime }?.startTime ?: 0L
+
             _state.update {
                 it.copy(
                     status = status,
@@ -126,7 +144,12 @@ class DashboardViewModel @Inject constructor(
                     recordingsToday = recordingsToday,
                     lastSync = TimeUtils.formatReadable(prefs.lastSyncEpochMs),
                     online = connectivity.isOnline(),
-                    refreshing = false
+                    refreshing = false,
+                    diagCallLogPermission = hasCallLog,
+                    diagActivation = if (activatedAt > 0L) (TimeUtils.formatReadable(activatedAt) ?: "-") else "not set",
+                    diagCallsVisible = visibleCalls.size,
+                    diagCallsAfterActivation = afterActivation,
+                    diagLatestCall = TimeUtils.formatReadable(latestCall) ?: "-"
                 )
             }
         }

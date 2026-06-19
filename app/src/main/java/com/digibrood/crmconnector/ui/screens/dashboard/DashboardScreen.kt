@@ -100,6 +100,9 @@ fun DashboardScreen(
                 value = state.lastSync ?: stringResource(R.string.status_never)
             )
 
+            Spacer(Modifier.height(16.dp))
+            DiagnosticsCard(state)
+
             Spacer(Modifier.height(24.dp))
             OutlinedButton(
                 onClick = onChangeNumber,
@@ -170,6 +173,51 @@ private data class StatusVisual(
     val color: Color,
     val icon: ImageVector
 )
+
+@Composable
+private fun DiagnosticsCard(state: DashboardUiState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                text = "Diagnostics",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+            DiagRow("Call log permission", if (state.diagCallLogPermission) "Granted" else "DENIED")
+            DiagRow("Capture start (activation)", state.diagActivation)
+            DiagRow("Calls visible on phone", state.diagCallsVisible.toString())
+            DiagRow("Calls after activation", state.diagCallsAfterActivation.toString())
+            DiagRow("Latest call on phone", state.diagLatestCall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Share these values if calls aren't syncing.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun DiagRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
 
 @Composable
 private fun InfoCard(
