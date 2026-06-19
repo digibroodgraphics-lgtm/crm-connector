@@ -42,6 +42,8 @@ class CallRepository @Inject constructor(
 
     suspend fun syncedTodayCount(): Int = callDao.syncedSince(TimeUtils.startOfTodayMillis())
 
+    suspend fun lastSyncedCall(): CallEntity? = withContext(Dispatchers.IO) { callDao.lastSyncedCall() }
+
     /**
      * Captures calls that occurred after the device's activation time and after
      * the last captured call. Returns the number of new calls queued.

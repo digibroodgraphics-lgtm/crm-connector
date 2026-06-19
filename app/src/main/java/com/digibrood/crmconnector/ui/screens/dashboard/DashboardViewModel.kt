@@ -40,6 +40,9 @@ data class DashboardUiState(
     val pendingCalls: Int = 0,
     val pendingRecordings: Int = 0,
     val refreshing: Boolean = false,
+    val lastSyncedNumber: String? = null,
+    val lastSyncedAt: String? = null,
+    val recordingsFound: Int = 0,
     // ---- Diagnostics (to pinpoint why calls may not capture) ----
     val diagCallLogPermission: Boolean = false,
     val diagActivation: String = "-",
@@ -144,6 +147,9 @@ class DashboardViewModel @Inject constructor(
             val afterActivation = visibleCalls.count { it.startTime > activatedAt }
             val latestCall = visibleCalls.maxByOrNull { it.startTime }?.startTime ?: 0L
 
+            val lastSynced = runCatching { callRepository.lastSyncedCall() }.getOrNull()
+            val recordingsFound = runCatching { recordingRepository.recordingFilesOnPhone() }.getOrDefault(0)
+
             _state.update {
                 it.copy(
                     status = status,
@@ -153,6 +159,9 @@ class DashboardViewModel @Inject constructor(
                     lastSync = TimeUtils.formatReadable(prefs.lastSyncEpochMs),
                     online = connectivity.isOnline(),
                     refreshing = false,
+                    lastSyncedNumber = lastSynced?.phoneNumber,
+                    lastSyncedAt = lastSynced?.let { c -> TimeUtils.formatReadable(c.startTime) },
+                    recordingsFound = recordingsFound,
                     diagCallLogPermission = hasCallLog,
                     diagActivation = if (activatedAt > 0L) (TimeUtils.formatReadable(activatedAt) ?: "-") else "not set",
                     diagCallsVisible = visibleCalls.size,

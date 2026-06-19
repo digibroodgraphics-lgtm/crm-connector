@@ -44,6 +44,11 @@ class RecordingRepository @Inject constructor(
 
     suspend fun uploadedTodayCount(since: Long): Int = recordingDao.uploadedSince(since)
 
+    /** Number of recording files currently discoverable on the device (diagnostics). */
+    suspend fun recordingFilesOnPhone(): Int = withContext(Dispatchers.IO) {
+        runCatching { scanner.scan(extraScanPaths()).size }.getOrDefault(0)
+    }
+
     private fun extraScanPaths(): List<String> {
         val override = prefs.recordingPathOverride
         return if (!override.isNullOrBlank()) listOf(override) else emptyList()

@@ -87,6 +87,10 @@ fun DashboardScreen(
                 value = state.callsToday.toString()
             )
             InfoCard(
+                label = "Last synced number",
+                value = state.lastSyncedNumber ?: "—"
+            )
+            InfoCard(
                 label = stringResource(R.string.status_recordings_today),
                 value = state.recordingsToday.toString()
             )
@@ -194,6 +198,8 @@ private fun DiagnosticsCard(state: DashboardUiState) {
             DiagRow("Calls visible on phone", state.diagCallsVisible.toString())
             DiagRow("Calls after activation", state.diagCallsAfterActivation.toString())
             DiagRow("Latest call on phone", state.diagLatestCall)
+            DiagRow("Recording files found", state.recordingsFound.toString())
+            DiagRow("Recordings pending", state.pendingRecordings.toString())
             DiagRow("Last sync result", state.diagLastSyncResult)
             Spacer(Modifier.height(6.dp))
             Text(text = "Device ID", style = MaterialTheme.typography.bodyMedium)

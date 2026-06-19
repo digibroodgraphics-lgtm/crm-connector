@@ -42,4 +42,7 @@ interface CallDao {
 
     @Query("SELECT MAX(startTime) FROM calls")
     suspend fun latestCapturedStartTime(): Long?
+
+    @Query("SELECT * FROM calls WHERE syncState = 'SYNCED' ORDER BY lastAttemptAt DESC, startTime DESC LIMIT 1")
+    suspend fun lastSyncedCall(): CallEntity?
 }
