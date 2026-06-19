@@ -15,6 +15,7 @@ import com.digibrood.crmconnector.sync.SyncManager
 import com.digibrood.crmconnector.util.ConnectivityObserver
 import com.digibrood.crmconnector.util.CallLogReader
 import com.digibrood.crmconnector.util.CrashReporter
+import com.digibrood.crmconnector.util.DeviceInfoProvider
 import com.digibrood.crmconnector.util.PermissionManager
 import com.digibrood.crmconnector.util.TimeUtils
 import android.Manifest
@@ -45,7 +46,9 @@ data class DashboardUiState(
     val diagCallsVisible: Int = 0,
     val diagCallsAfterActivation: Int = 0,
     val diagLatestCall: String = "-",
-    val diagLastCrash: String? = null
+    val diagLastCrash: String? = null,
+    val diagDeviceId: String = "-",
+    val diagLastSyncResult: String = "-"
 ) {
     val pendingTotal: Int get() = pendingCalls + pendingRecordings
 }
@@ -68,6 +71,7 @@ class DashboardViewModel @Inject constructor(
     private val permissionManager: PermissionManager,
     private val callLogReader: CallLogReader,
     private val crashReporter: CrashReporter,
+    private val deviceInfo: DeviceInfoProvider,
     private val prefs: SecurePrefs
 ) : ViewModel() {
 
@@ -154,7 +158,9 @@ class DashboardViewModel @Inject constructor(
                     diagCallsVisible = visibleCalls.size,
                     diagCallsAfterActivation = afterActivation,
                     diagLatestCall = TimeUtils.formatReadable(latestCall) ?: "-",
-                    diagLastCrash = crashReporter.lastCrashSummary()
+                    diagLastCrash = crashReporter.lastCrashSummary(),
+                    diagDeviceId = deviceInfo.deviceId,
+                    diagLastSyncResult = prefs.lastSyncResult ?: "-"
                 )
             }
         }

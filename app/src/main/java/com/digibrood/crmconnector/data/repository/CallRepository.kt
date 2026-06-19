@@ -119,11 +119,21 @@ class CallRepository @Inject constructor(
                         callDao.markSynced(call.clientCallId, serverId)
                     }
                     prefs.lastSyncEpochMs = now
+                    prefs.lastSyncResult = "OK: ${batch.size} call(s) accepted (HTTP 2xx)"
                     if (batch.size < batchSize) break
                 }
 
-                is NetworkResult.ApiFailure, is NetworkResult.NetworkError -> {
+                is NetworkResult.ApiFailure -> {
                     callDao.markState(batch.map { it.clientCallId }, CallEntity.SyncState.FAILED, now)
+                    prefs.lastSyncResult =
+                        "API rejected: code=${result.errorCode ?: "?"} http=${result.httpCode}"
+                    allOk = false
+                    break
+                }
+
+                is NetworkResult.NetworkError -> {
+                    callDao.markState(batch.map { it.clientCallId }, CallEntity.SyncState.FAILED, now)
+                    prefs.lastSyncResult = "Network error: ${result.throwable.message ?: "unknown"}"
                     allOk = false
                     break
                 }

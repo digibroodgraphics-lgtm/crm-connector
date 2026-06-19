@@ -95,6 +95,10 @@ class SecurePrefs @Inject constructor(
         get() = prefs.getLong(KEY_LAST_SYNC, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_SYNC, value).apply()
 
+    var lastSyncResult: String?
+        get() = prefs.getString(KEY_LAST_SYNC_RESULT, null)
+        set(value) = prefs.edit().putString(KEY_LAST_SYNC_RESULT, value).apply()
+
     val isLoggedIn: Boolean get() = accessToken != null
 
     val isDeviceRegistered: Boolean get() = !registeredNumber.isNullOrBlank()
@@ -131,5 +135,6 @@ class SecurePrefs @Inject constructor(
         private const val KEY_BRANDING_LOGO = "branding_logo_url"
         private const val KEY_MANUAL_LOGO = "manual_logo_uri"
         private const val KEY_LAST_SYNC = "last_sync"
+        private const val KEY_LAST_SYNC_RESULT = "last_sync_result"
     }
 }

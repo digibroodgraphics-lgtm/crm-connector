@@ -194,6 +194,14 @@ private fun DiagnosticsCard(state: DashboardUiState) {
             DiagRow("Calls visible on phone", state.diagCallsVisible.toString())
             DiagRow("Calls after activation", state.diagCallsAfterActivation.toString())
             DiagRow("Latest call on phone", state.diagLatestCall)
+            DiagRow("Last sync result", state.diagLastSyncResult)
+            Spacer(Modifier.height(6.dp))
+            Text(text = "Device ID", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = state.diagDeviceId,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold
+            )
             state.diagLastCrash?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(
