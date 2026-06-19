@@ -51,7 +51,7 @@ interface CrmApiService {
     suspend fun changeNumber(@Body body: ChangeNumberRequest): Response<RegisterDeviceResponse>
 
     @GET("device/status")
-    suspend fun getDeviceStatus(): Response<DeviceStatusResponse>
+    suspend fun getDeviceStatus(@Query("device_id") deviceId: String): Response<DeviceStatusResponse>
 
     @POST("heartbeat")
     suspend fun heartbeat(@Body body: HeartbeatRequest): Response<HeartbeatResponse>

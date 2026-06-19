@@ -68,7 +68,7 @@ class DeviceRepository @Inject constructor(
     }
 
     suspend fun refreshStatus(): NetworkResult<DeviceStatusResponse> {
-        val result = safeApiCall(moshi) { api.getDeviceStatus() }
+        val result = safeApiCall(moshi) { api.getDeviceStatus(deviceInfo.deviceId) }
         if (result is NetworkResult.Success) {
             val body = result.data
             body.deviceStatus?.let { prefs.deviceStatus = it }
