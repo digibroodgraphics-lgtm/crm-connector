@@ -73,6 +73,7 @@ class CallRepository @Inject constructor(
             val clientCallId = UUID.randomUUID().toString()
             val hasRecording = recordingRepository.discoverForCall(
                 clientCallId = clientCallId,
+                phone = captured.phoneNumber,
                 callStart = captured.startTime,
                 callEnd = captured.endTime
             )
@@ -112,7 +113,7 @@ class CallRepository @Inject constructor(
 
         val clientCallId = UUID.randomUUID().toString()
         val hasRecording = recordingRepository.discoverForCall(
-            clientCallId, recent.startTime, recent.endTime
+            clientCallId, recent.phoneNumber, recent.startTime, recent.endTime
         )
         callDao.insert(recent.toEntity(clientCallId, hasRecording))
         CapturedCallRef(clientCallId, recent.callType.apiValue, recent.phoneNumber)
@@ -128,7 +129,7 @@ class CallRepository @Inject constructor(
 
         val clientCallId = UUID.randomUUID().toString()
         val hasRecording = recordingRepository.discoverForCall(
-            clientCallId, captured.startTime, captured.endTime
+            clientCallId, captured.phoneNumber, captured.startTime, captured.endTime
         )
         val rowId = callDao.insert(captured.toEntity(clientCallId, hasRecording))
         if (rowId != -1L) clientCallId else null

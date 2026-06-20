@@ -19,7 +19,7 @@ import com.digibrood.crmconnector.data.local.entity.RemarkEntity
         RecordingEntity::class,
         RemarkEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

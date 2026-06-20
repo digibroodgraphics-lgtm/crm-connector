@@ -19,6 +19,7 @@ import androidx.room.PrimaryKey
 data class RecordingEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val clientCallId: String,
+    val phoneNumber: String? = null,
     val filePath: String,
     val fileName: String,
     val mimeType: String,

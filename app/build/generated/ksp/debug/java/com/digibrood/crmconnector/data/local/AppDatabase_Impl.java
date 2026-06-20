@@ -42,21 +42,21 @@ public final class AppDatabase_Impl extends AppDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(4) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `calls` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT NOT NULL, `phoneNumber` TEXT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `callType` TEXT NOT NULL, `hasRecording` INTEGER NOT NULL, `syncState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `lastAttemptAt` INTEGER NOT NULL, `serverCallId` TEXT, `createdAt` INTEGER NOT NULL)");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_calls_clientCallId` ON `calls` (`clientCallId`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_calls_syncState` ON `calls` (`syncState`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_calls_startTime` ON `calls` (`startTime`)");
-        db.execSQL("CREATE TABLE IF NOT EXISTS `recordings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT NOT NULL, `filePath` TEXT NOT NULL, `fileName` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `fileSize` INTEGER NOT NULL, `recordedAt` INTEGER NOT NULL, `uploadState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `lastAttemptAt` INTEGER NOT NULL, `recordingId` TEXT, `objectKey` TEXT, `createdAt` INTEGER NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `recordings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT NOT NULL, `phoneNumber` TEXT, `filePath` TEXT NOT NULL, `fileName` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `fileSize` INTEGER NOT NULL, `recordedAt` INTEGER NOT NULL, `uploadState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `lastAttemptAt` INTEGER NOT NULL, `recordingId` TEXT, `objectKey` TEXT, `createdAt` INTEGER NOT NULL)");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_recordings_filePath` ON `recordings` (`filePath`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_recordings_uploadState` ON `recordings` (`uploadState`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_recordings_clientCallId` ON `recordings` (`clientCallId`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `remarks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT, `phoneNumber` TEXT NOT NULL, `contactName` TEXT, `company` TEXT, `callType` TEXT, `remark` TEXT NOT NULL, `status` TEXT, `syncState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_remarks_syncState` ON `remarks` (`syncState`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '77b08502b1e1373a025f38b8bce5e011')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ec8750780e5a13c398bc43e333235bab')");
       }
 
       @Override
@@ -133,9 +133,10 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoCalls + "\n"
                   + " Found:\n" + _existingCalls);
         }
-        final HashMap<String, TableInfo.Column> _columnsRecordings = new HashMap<String, TableInfo.Column>(13);
+        final HashMap<String, TableInfo.Column> _columnsRecordings = new HashMap<String, TableInfo.Column>(14);
         _columnsRecordings.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRecordings.put("clientCallId", new TableInfo.Column("clientCallId", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsRecordings.put("phoneNumber", new TableInfo.Column("phoneNumber", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRecordings.put("filePath", new TableInfo.Column("filePath", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRecordings.put("fileName", new TableInfo.Column("fileName", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRecordings.put("mimeType", new TableInfo.Column("mimeType", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
@@ -183,7 +184,7 @@ public final class AppDatabase_Impl extends AppDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "77b08502b1e1373a025f38b8bce5e011", "7573eee2fd420c853b3eb55055c5f279");
+    }, "ec8750780e5a13c398bc43e333235bab", "6ba869382ef016bc908093a69c903e68");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
