@@ -22,6 +22,9 @@ interface CallDao {
     @Query("SELECT * FROM calls WHERE clientCallId = :clientCallId LIMIT 1")
     suspend fun getByClientId(clientCallId: String): CallEntity?
 
+    @Query("SELECT * FROM calls WHERE phoneNumber = :num AND startTime = :start LIMIT 1")
+    suspend fun findByNumberAndStart(num: String, start: Long): CallEntity?
+
     @Query("SELECT EXISTS(SELECT 1 FROM calls WHERE clientCallId = :clientCallId)")
     suspend fun exists(clientCallId: String): Boolean
 

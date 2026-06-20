@@ -340,6 +340,82 @@ public final class CallDao_Impl implements CallDao {
   }
 
   @Override
+  public Object findByNumberAndStart(final String num, final long start,
+      final Continuation<? super CallEntity> $completion) {
+    final String _sql = "SELECT * FROM calls WHERE phoneNumber = ? AND startTime = ? LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, num);
+    _argIndex = 2;
+    _statement.bindLong(_argIndex, start);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<CallEntity>() {
+      @Override
+      @Nullable
+      public CallEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfClientCallId = CursorUtil.getColumnIndexOrThrow(_cursor, "clientCallId");
+          final int _cursorIndexOfPhoneNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "phoneNumber");
+          final int _cursorIndexOfStartTime = CursorUtil.getColumnIndexOrThrow(_cursor, "startTime");
+          final int _cursorIndexOfEndTime = CursorUtil.getColumnIndexOrThrow(_cursor, "endTime");
+          final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
+          final int _cursorIndexOfCallType = CursorUtil.getColumnIndexOrThrow(_cursor, "callType");
+          final int _cursorIndexOfHasRecording = CursorUtil.getColumnIndexOrThrow(_cursor, "hasRecording");
+          final int _cursorIndexOfSyncState = CursorUtil.getColumnIndexOrThrow(_cursor, "syncState");
+          final int _cursorIndexOfAttemptCount = CursorUtil.getColumnIndexOrThrow(_cursor, "attemptCount");
+          final int _cursorIndexOfLastAttemptAt = CursorUtil.getColumnIndexOrThrow(_cursor, "lastAttemptAt");
+          final int _cursorIndexOfServerCallId = CursorUtil.getColumnIndexOrThrow(_cursor, "serverCallId");
+          final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "createdAt");
+          final CallEntity _result;
+          if (_cursor.moveToFirst()) {
+            final long _tmpId;
+            _tmpId = _cursor.getLong(_cursorIndexOfId);
+            final String _tmpClientCallId;
+            _tmpClientCallId = _cursor.getString(_cursorIndexOfClientCallId);
+            final String _tmpPhoneNumber;
+            _tmpPhoneNumber = _cursor.getString(_cursorIndexOfPhoneNumber);
+            final long _tmpStartTime;
+            _tmpStartTime = _cursor.getLong(_cursorIndexOfStartTime);
+            final long _tmpEndTime;
+            _tmpEndTime = _cursor.getLong(_cursorIndexOfEndTime);
+            final long _tmpDuration;
+            _tmpDuration = _cursor.getLong(_cursorIndexOfDuration);
+            final String _tmpCallType;
+            _tmpCallType = _cursor.getString(_cursorIndexOfCallType);
+            final boolean _tmpHasRecording;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfHasRecording);
+            _tmpHasRecording = _tmp != 0;
+            final String _tmpSyncState;
+            _tmpSyncState = _cursor.getString(_cursorIndexOfSyncState);
+            final int _tmpAttemptCount;
+            _tmpAttemptCount = _cursor.getInt(_cursorIndexOfAttemptCount);
+            final long _tmpLastAttemptAt;
+            _tmpLastAttemptAt = _cursor.getLong(_cursorIndexOfLastAttemptAt);
+            final String _tmpServerCallId;
+            if (_cursor.isNull(_cursorIndexOfServerCallId)) {
+              _tmpServerCallId = null;
+            } else {
+              _tmpServerCallId = _cursor.getString(_cursorIndexOfServerCallId);
+            }
+            final long _tmpCreatedAt;
+            _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
+            _result = new CallEntity(_tmpId,_tmpClientCallId,_tmpPhoneNumber,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpCallType,_tmpHasRecording,_tmpSyncState,_tmpAttemptCount,_tmpLastAttemptAt,_tmpServerCallId,_tmpCreatedAt);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object exists(final String clientCallId, final Continuation<? super Boolean> $completion) {
     final String _sql = "SELECT EXISTS(SELECT 1 FROM calls WHERE clientCallId = ?)";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);

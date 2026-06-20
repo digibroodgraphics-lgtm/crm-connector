@@ -37,6 +37,7 @@ data class RemarkRequest(
     @Json(name = "device_id") val deviceId: String? = null,
     @Json(name = "client_call_id") val clientCallId: String? = null,
     @Json(name = "phone") val phone: String,
+    @Json(name = "call_type") val callType: String? = null,
     @Json(name = "name") val name: String? = null,
     @Json(name = "company") val company: String? = null,
     @Json(name = "remark") val remark: String,

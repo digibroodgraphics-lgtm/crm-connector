@@ -66,6 +66,8 @@ import com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel;
 import com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel_HiltModules;
 import com.digibrood.crmconnector.ui.screens.register.RegisterViewModel;
 import com.digibrood.crmconnector.ui.screens.register.RegisterViewModel_HiltModules;
+import com.digibrood.crmconnector.ui.screens.session.SessionViewModel;
+import com.digibrood.crmconnector.ui.screens.session.SessionViewModel_HiltModules;
 import com.digibrood.crmconnector.ui.screens.splash.SplashViewModel;
 import com.digibrood.crmconnector.ui.screens.splash.SplashViewModel_HiltModules;
 import com.digibrood.crmconnector.util.CallLogReader;
@@ -452,7 +454,7 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
 
     @Override
     public Map<Class<?>, Boolean> getViewModelKeys() {
-      return LazyClassKeyMap.<Boolean>of(MapBuilder.<String, Boolean>newMapBuilder(6).put(LazyClassKeyProvider.com_digibrood_crmconnector_overlay_CallPopupViewModel, CallPopupViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel, DashboardViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_login_LoginViewModel, LoginViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel, PermissionsViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_register_RegisterViewModel, RegisterViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_splash_SplashViewModel, SplashViewModel_HiltModules.KeyModule.provide()).build());
+      return LazyClassKeyMap.<Boolean>of(MapBuilder.<String, Boolean>newMapBuilder(7).put(LazyClassKeyProvider.com_digibrood_crmconnector_overlay_CallPopupViewModel, CallPopupViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel, DashboardViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_login_LoginViewModel, LoginViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel, PermissionsViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_register_RegisterViewModel, RegisterViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_session_SessionViewModel, SessionViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_splash_SplashViewModel, SplashViewModel_HiltModules.KeyModule.provide()).build());
     }
 
     @Override
@@ -472,32 +474,37 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
 
     @IdentifierNameString
     private static final class LazyClassKeyProvider {
-      static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
-
-      static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
-
       static String com_digibrood_crmconnector_ui_screens_register_RegisterViewModel = "com.digibrood.crmconnector.ui.screens.register.RegisterViewModel";
 
-      static String com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel = "com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel";
+      static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
 
+      static String com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel = "com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel";
+
+      static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_session_SessionViewModel = "com.digibrood.crmconnector.ui.screens.session.SessionViewModel";
+
       static String com_digibrood_crmconnector_ui_screens_splash_SplashViewModel = "com.digibrood.crmconnector.ui.screens.splash.SplashViewModel";
-
-      @KeepFieldType
-      DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
-
-      @KeepFieldType
-      CallPopupViewModel com_digibrood_crmconnector_overlay_CallPopupViewModel2;
 
       @KeepFieldType
       RegisterViewModel com_digibrood_crmconnector_ui_screens_register_RegisterViewModel2;
 
       @KeepFieldType
-      PermissionsViewModel com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel2;
+      DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
 
       @KeepFieldType
       LoginViewModel com_digibrood_crmconnector_ui_screens_login_LoginViewModel2;
+
+      @KeepFieldType
+      PermissionsViewModel com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel2;
+
+      @KeepFieldType
+      CallPopupViewModel com_digibrood_crmconnector_overlay_CallPopupViewModel2;
+
+      @KeepFieldType
+      SessionViewModel com_digibrood_crmconnector_ui_screens_session_SessionViewModel2;
 
       @KeepFieldType
       SplashViewModel com_digibrood_crmconnector_ui_screens_splash_SplashViewModel2;
@@ -521,6 +528,8 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
 
     private Provider<RegisterViewModel> registerViewModelProvider;
 
+    private Provider<SessionViewModel> sessionViewModelProvider;
+
     private Provider<SplashViewModel> splashViewModelProvider;
 
     private ViewModelCImpl(SingletonCImpl singletonCImpl,
@@ -541,12 +550,13 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
       this.loginViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 2);
       this.permissionsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 3);
       this.registerViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 4);
-      this.splashViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 5);
+      this.sessionViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 5);
+      this.splashViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 6);
     }
 
     @Override
     public Map<Class<?>, javax.inject.Provider<ViewModel>> getHiltViewModelMap() {
-      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(6).put(LazyClassKeyProvider.com_digibrood_crmconnector_overlay_CallPopupViewModel, ((Provider) callPopupViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel, ((Provider) dashboardViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_login_LoginViewModel, ((Provider) loginViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel, ((Provider) permissionsViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_register_RegisterViewModel, ((Provider) registerViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_splash_SplashViewModel, ((Provider) splashViewModelProvider)).build());
+      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(7).put(LazyClassKeyProvider.com_digibrood_crmconnector_overlay_CallPopupViewModel, ((Provider) callPopupViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel, ((Provider) dashboardViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_login_LoginViewModel, ((Provider) loginViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel, ((Provider) permissionsViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_register_RegisterViewModel, ((Provider) registerViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_session_SessionViewModel, ((Provider) sessionViewModelProvider)).put(LazyClassKeyProvider.com_digibrood_crmconnector_ui_screens_splash_SplashViewModel, ((Provider) splashViewModelProvider)).build());
     }
 
     @Override
@@ -556,20 +566,22 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
 
     @IdentifierNameString
     private static final class LazyClassKeyProvider {
-      static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
+      static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_register_RegisterViewModel = "com.digibrood.crmconnector.ui.screens.register.RegisterViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_splash_SplashViewModel = "com.digibrood.crmconnector.ui.screens.splash.SplashViewModel";
 
-      static String com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel = "com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel";
+      static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_session_SessionViewModel = "com.digibrood.crmconnector.ui.screens.session.SessionViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
 
-      static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
+      static String com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel = "com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel";
 
       @KeepFieldType
-      LoginViewModel com_digibrood_crmconnector_ui_screens_login_LoginViewModel2;
+      CallPopupViewModel com_digibrood_crmconnector_overlay_CallPopupViewModel2;
 
       @KeepFieldType
       RegisterViewModel com_digibrood_crmconnector_ui_screens_register_RegisterViewModel2;
@@ -578,13 +590,16 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
       SplashViewModel com_digibrood_crmconnector_ui_screens_splash_SplashViewModel2;
 
       @KeepFieldType
-      PermissionsViewModel com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel2;
+      LoginViewModel com_digibrood_crmconnector_ui_screens_login_LoginViewModel2;
+
+      @KeepFieldType
+      SessionViewModel com_digibrood_crmconnector_ui_screens_session_SessionViewModel2;
 
       @KeepFieldType
       DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
 
       @KeepFieldType
-      CallPopupViewModel com_digibrood_crmconnector_overlay_CallPopupViewModel2;
+      PermissionsViewModel com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel2;
     }
 
     private static final class SwitchingProvider<T> implements Provider<T> {
@@ -623,7 +638,10 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
           case 4: // com.digibrood.crmconnector.ui.screens.register.RegisterViewModel 
           return (T) new RegisterViewModel(singletonCImpl.deviceRepositoryProvider.get(), singletonCImpl.securePrefsProvider.get());
 
-          case 5: // com.digibrood.crmconnector.ui.screens.splash.SplashViewModel 
+          case 5: // com.digibrood.crmconnector.ui.screens.session.SessionViewModel 
+          return (T) new SessionViewModel(singletonCImpl.securePrefsProvider.get());
+
+          case 6: // com.digibrood.crmconnector.ui.screens.splash.SplashViewModel 
           return (T) new SplashViewModel(singletonCImpl.securePrefsProvider.get(), singletonCImpl.brandingRepositoryProvider.get(), singletonCImpl.deviceRepositoryProvider.get(), singletonCImpl.startDestinationProvider.get(), singletonCImpl.syncManagerProvider.get());
 
           default: throw new AssertionError(id);

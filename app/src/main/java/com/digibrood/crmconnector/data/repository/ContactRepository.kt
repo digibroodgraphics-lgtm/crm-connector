@@ -75,13 +75,15 @@ class ContactRepository @Inject constructor(
         name: String?,
         company: String?,
         remark: String,
-        status: String?
+        status: String?,
+        callType: String?
     ): Boolean = withContext(Dispatchers.IO) {
         val normalized = PhoneUtils.normalize(phoneNumber)
         val request = RemarkRequest(
             deviceId = deviceInfo.deviceId,
             clientCallId = clientCallId,
             phone = normalized,
+            callType = callType?.takeIf { it.isNotBlank() },
             name = name?.takeIf { it.isNotBlank() },
             company = company?.takeIf { it.isNotBlank() },
             remark = remark,
@@ -97,6 +99,7 @@ class ContactRepository @Inject constructor(
                     phoneNumber = normalized,
                     contactName = name,
                     company = company,
+                    callType = callType,
                     remark = remark,
                     status = status
                 )
@@ -116,6 +119,7 @@ class ContactRepository @Inject constructor(
                         deviceId = deviceInfo.deviceId,
                         clientCallId = entity.clientCallId,
                         phone = entity.phoneNumber,
+                        callType = entity.callType,
                         name = entity.contactName,
                         company = entity.company,
                         remark = entity.remark,

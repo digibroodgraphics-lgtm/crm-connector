@@ -22,6 +22,13 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** A stable reference to a captured call, shared with the after-call popup. */
+data class CapturedCallRef(
+    val clientCallId: String,
+    val callType: String,
+    val phone: String
+)
+
 /**
  * Owns the call queue. Captures new calls from the system log (activation-forward
  * only), generates a client_call_id, attaches any recording, and syncs queued
@@ -58,10 +65,12 @@ class CallRepository @Inject constructor(
 
         val watermark = maxOf(activatedAt, callDao.latestCapturedStartTime() ?: 0L)
         val newCalls = callLogReader.readCallsSince(watermark)
-            .filter { it.startTime > activatedAt }
+            .filter { it.startTime > activatedAt && it.phoneNumber.isNotBlank() }
 
         var inserted = 0
         for (captured in newCalls) {
+            // Skip calls already captured (e.g. by the real-time receiver path).
+            if (callDao.findByNumberAndStart(captured.phoneNumber, captured.startTime) != null) continue
             val clientCallId = UUID.randomUUID().toString()
             val hasRecording = recordingRepository.discoverForCall(
                 clientCallId = clientCallId,
@@ -72,6 +81,42 @@ class CallRepository @Inject constructor(
             if (rowId != -1L) inserted++
         }
         inserted
+    }
+
+    /**
+     * Captures the just-ended call in real time (called from the call receiver),
+     * returning a stable reference so the after-call popup can send the SAME
+     * client_call_id and call_type to /calls/remark. Returns null if the call is
+     * not yet in the system log, is before activation, or has no phone number.
+     *
+     * @param callStartedAtApprox the approximate wall-clock time the call began.
+     */
+    suspend fun captureRecentCall(callStartedAtApprox: Long): CapturedCallRef? = withContext(Dispatchers.IO) {
+        val status = DeviceStatus.fromApi(prefs.deviceStatus)
+        val activatedAt = prefs.activatedAtEpochMs
+        if (status != DeviceStatus.APPROVED || activatedAt <= 0L) return@withContext null
+
+        val recent = callLogReader.readMostRecentCall() ?: return@withContext null
+        // Not the just-ended call yet (log entry not written) — let the caller retry.
+        if (recent.startTime < callStartedAtApprox - 60_000L) return@withContext null
+        if (recent.startTime <= activatedAt) return@withContext null
+        if (recent.phoneNumber.isBlank()) return@withContext null
+
+        val existing = callDao.findByNumberAndStart(recent.phoneNumber, recent.startTime)
+        if (existing != null) {
+            return@withContext CapturedCallRef(
+                clientCallId = existing.clientCallId,
+                callType = CallType.fromApi(existing.callType).apiValue,
+                phone = existing.phoneNumber
+            )
+        }
+
+        val clientCallId = UUID.randomUUID().toString()
+        val hasRecording = recordingRepository.discoverForCall(
+            clientCallId, recent.startTime, recent.endTime
+        )
+        callDao.insert(recent.toEntity(clientCallId, hasRecording))
+        CapturedCallRef(clientCallId, recent.callType.apiValue, recent.phoneNumber)
     }
 
     /**
@@ -164,11 +209,11 @@ class CallRepository @Inject constructor(
 
     private fun CallEntity.toSyncItem() = CallSyncItem(
         clientCallId = clientCallId,
-        phoneNumber = phoneNumber,
-        startTime = startTime,
-        endTime = endTime,
-        duration = duration,
+        phone = phoneNumber,
         callType = CallType.fromApi(callType).apiValue,
+        startTime = TimeUtils.toIso8601(startTime),
+        endTime = TimeUtils.toIso8601(endTime),
+        duration = duration,
         hasRecording = hasRecording
     )
 }

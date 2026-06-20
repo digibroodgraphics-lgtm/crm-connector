@@ -20,6 +20,7 @@ data class CallPopupUiState(
     val contactFound: Boolean = false,
     val contactName: String = "",
     val company: String = "",
+    val callType: String? = null,
     val crmStatus: String? = null,
     val remark: String = "",
     val saving: Boolean = false,
@@ -39,10 +40,15 @@ class CallPopupViewModel @Inject constructor(
     private val _state = MutableStateFlow(CallPopupUiState())
     val state: StateFlow<CallPopupUiState> = _state.asStateFlow()
 
-    fun start(phoneNumber: String?, clientCallId: String?) {
+    fun start(phoneNumber: String?, clientCallId: String?, callType: String? = null) {
         val normalized = PhoneUtils.normalize(phoneNumber)
         _state.update {
-            it.copy(phoneNumber = normalized, clientCallId = clientCallId, loadingContact = true)
+            it.copy(
+                phoneNumber = normalized,
+                clientCallId = clientCallId,
+                callType = callType,
+                loadingContact = true
+            )
         }
         viewModelScope.launch {
             val details = if (normalized.isBlank()) null else contactRepository.lookup(normalized)
@@ -74,7 +80,8 @@ class CallPopupViewModel @Inject constructor(
                 name = current.contactName,
                 company = current.company,
                 remark = current.remark,
-                status = current.crmStatus
+                status = current.crmStatus,
+                callType = current.callType
             )
             _state.update { it.copy(saving = false, saved = true) }
             onSaved()

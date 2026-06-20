@@ -18,6 +18,7 @@ data class RemarkEntity(
     val phoneNumber: String,
     val contactName: String?,
     val company: String?,
+    val callType: String?,
     val remark: String,
     val status: String?,
     val syncState: String = SyncState.PENDING,

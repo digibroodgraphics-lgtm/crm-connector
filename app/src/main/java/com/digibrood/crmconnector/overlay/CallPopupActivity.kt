@@ -56,6 +56,7 @@ class CallPopupActivity : ComponentActivity() {
 
         val phone = intent.getStringExtra(Constants.EXTRA_POPUP_PHONE)
         val clientCallId = intent.getStringExtra(Constants.EXTRA_POPUP_CLIENT_CALL_ID)
+        val callType = intent.getStringExtra(Constants.EXTRA_POPUP_CALL_TYPE)
 
         setContent {
             CrmConnectorTheme {
@@ -63,7 +64,7 @@ class CallPopupActivity : ComponentActivity() {
                 val state by vm.state.collectAsStateWithLifecycle()
 
                 androidx.compose.runtime.LaunchedEffect(Unit) {
-                    vm.start(phone, clientCallId)
+                    vm.start(phone, clientCallId, callType)
                 }
 
                 CallPopupContent(
@@ -89,12 +90,13 @@ class CallPopupActivity : ComponentActivity() {
     }
 
     companion object {
-        fun launch(context: Context, phoneNumber: String?, clientCallId: String? = null) {
+        fun launch(context: Context, phoneNumber: String?, clientCallId: String? = null, callType: String? = null) {
             val intent = Intent(context, CallPopupActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 putExtra(Constants.EXTRA_POPUP_PHONE, phoneNumber)
                 putExtra(Constants.EXTRA_POPUP_CLIENT_CALL_ID, clientCallId)
+                putExtra(Constants.EXTRA_POPUP_CALL_TYPE, callType)
             }
             context.startActivity(intent)
         }

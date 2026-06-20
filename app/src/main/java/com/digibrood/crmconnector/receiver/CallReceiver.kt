@@ -5,22 +5,28 @@ import android.content.Context
 import android.content.Intent
 import android.telephony.TelephonyManager
 import com.digibrood.crmconnector.data.prefs.SecurePrefs
+import com.digibrood.crmconnector.data.repository.CallRepository
+import com.digibrood.crmconnector.data.repository.CapturedCallRef
 import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.overlay.CallPopupActivity
-import com.digibrood.crmconnector.util.Constants
 import com.digibrood.crmconnector.util.PermissionManager
 import com.digibrood.crmconnector.util.PhoneUtils
 import com.digibrood.crmconnector.worker.SyncScheduler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * Detects call start/end transitions. When a call ends and the device is
- * approved, it triggers an immediate sync (which captures the call and uploads
- * any recording) and, if enabled, shows the after-call overlay popup.
+ * approved, it captures the just-ended call (generating ONE stable
+ * client_call_id shared by sync, recording upload and the remark popup),
+ * triggers sync, and — for connected calls only — shows the after-call popup.
  *
- * Handles incoming, outgoing, missed and rejected calls — all four resolve to a
- * transition back to IDLE, after which the call log is read by the sync worker.
+ * Missed/rejected calls are still captured and logged, but never show a popup.
  */
 @AndroidEntryPoint
 class CallReceiver : BroadcastReceiver() {
@@ -28,6 +34,9 @@ class CallReceiver : BroadcastReceiver() {
     @Inject lateinit var scheduler: SyncScheduler
     @Inject lateinit var prefs: SecurePrefs
     @Inject lateinit var permissionManager: PermissionManager
+    @Inject lateinit var callRepository: CallRepository
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -52,11 +61,13 @@ class CallReceiver : BroadcastReceiver() {
 
         when (state) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
+                if (!wasInCall) callStartAt = System.currentTimeMillis()
                 wasInCall = true
                 lastState = state
             }
 
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
+                if (!wasInCall) callStartAt = System.currentTimeMillis()
                 wasInCall = true
                 wentOffHook = true
                 lastState = state
@@ -64,7 +75,7 @@ class CallReceiver : BroadcastReceiver() {
 
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 if (wasInCall && lastState != TelephonyManager.EXTRA_STATE_IDLE) {
-                    onCallEnded(context, connected = wentOffHook)
+                    onCallEnded(context, connected = wentOffHook, startedAt = callStartAt)
                 }
                 wasInCall = false
                 wentOffHook = false
@@ -73,21 +84,44 @@ class CallReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun onCallEnded(context: Context, connected: Boolean) {
+    private fun onCallEnded(context: Context, connected: Boolean, startedAt: Long) {
         val status = DeviceStatus.fromApi(prefs.deviceStatus)
         if (status != DeviceStatus.APPROVED || prefs.activatedAtEpochMs <= 0L) return
 
-        // Always capture + sync the call log (including missed/rejected calls)
-        // and upload any recording.
-        scheduler.requestImmediateSync()
-        scheduler.requestRecordingUpload()
+        val number = lastNumber
+        val pending = goAsync()
+        scope.launch {
+            try {
+                // The call log entry may take a moment to appear; retry briefly to
+                // capture the just-ended call and obtain its stable client_call_id.
+                var ref: CapturedCallRef? = null
+                var attempts = 0
+                while (ref == null && attempts < 6) {
+                    ref = runCatching { callRepository.captureRecentCall(startedAt) }.getOrNull()
+                    if (ref == null) {
+                        delay(800)
+                        attempts++
+                    }
+                }
 
-        // Only show the after-call popup for CONNECTED calls. Missed/rejected
-        // calls are still logged but never trigger a popup.
-        if (connected && prefs.callPopupEnabled && permissionManager.canDrawOverlays()) {
-            CallPopupActivity.launch(context, lastNumber)
+                // Push the queue (uploads the call and any recording).
+                scheduler.requestImmediateSync()
+                scheduler.requestRecordingUpload()
+
+                // Connected calls show the popup with the SAME id + call_type so the
+                // remark links to the call and recording. Missed/rejected: no popup.
+                if (connected && prefs.callPopupEnabled && permissionManager.canDrawOverlays()) {
+                    if (ref != null) {
+                        CallPopupActivity.launch(context, ref.phone, ref.clientCallId, ref.callType)
+                    } else {
+                        CallPopupActivity.launch(context, number, null, null)
+                    }
+                }
+            } finally {
+                lastNumber = null
+                pending.finish()
+            }
         }
-        lastNumber = null
     }
 
     companion object {
@@ -95,5 +129,6 @@ class CallReceiver : BroadcastReceiver() {
         @Volatile private var wasInCall: Boolean = false
         @Volatile private var wentOffHook: Boolean = false
         @Volatile private var lastNumber: String? = null
+        @Volatile private var callStartAt: Long = 0L
     }
 }

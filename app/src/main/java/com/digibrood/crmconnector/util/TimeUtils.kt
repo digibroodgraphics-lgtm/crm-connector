@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -65,6 +66,11 @@ object TimeUtils {
         val sdf = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
         return sdf.format(Date(epochMillis))
     }
+
+    /** Formats epoch millis as an ISO-8601 string with timezone offset (CRM format). */
+    fun toIso8601(epochMillis: Long): String =
+        OffsetDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.systemDefault())
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
 
     /** Epoch millis for the start of the current local day (00:00). */
     fun startOfTodayMillis(): Long {

@@ -42,7 +42,7 @@ public final class AppDatabase_Impl extends AppDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `calls` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT NOT NULL, `phoneNumber` TEXT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `callType` TEXT NOT NULL, `hasRecording` INTEGER NOT NULL, `syncState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `lastAttemptAt` INTEGER NOT NULL, `serverCallId` TEXT, `createdAt` INTEGER NOT NULL)");
@@ -53,10 +53,10 @@ public final class AppDatabase_Impl extends AppDatabase {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_recordings_filePath` ON `recordings` (`filePath`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_recordings_uploadState` ON `recordings` (`uploadState`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_recordings_clientCallId` ON `recordings` (`clientCallId`)");
-        db.execSQL("CREATE TABLE IF NOT EXISTS `remarks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT, `phoneNumber` TEXT NOT NULL, `contactName` TEXT, `company` TEXT, `remark` TEXT NOT NULL, `status` TEXT, `syncState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `remarks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `clientCallId` TEXT, `phoneNumber` TEXT NOT NULL, `contactName` TEXT, `company` TEXT, `callType` TEXT, `remark` TEXT NOT NULL, `status` TEXT, `syncState` TEXT NOT NULL, `attemptCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_remarks_syncState` ON `remarks` (`syncState`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd63e8ccc1a1c48174f01f693d8a7cc97')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '77b08502b1e1373a025f38b8bce5e011')");
       }
 
       @Override
@@ -159,12 +159,13 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoRecordings + "\n"
                   + " Found:\n" + _existingRecordings);
         }
-        final HashMap<String, TableInfo.Column> _columnsRemarks = new HashMap<String, TableInfo.Column>(10);
+        final HashMap<String, TableInfo.Column> _columnsRemarks = new HashMap<String, TableInfo.Column>(11);
         _columnsRemarks.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("clientCallId", new TableInfo.Column("clientCallId", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("phoneNumber", new TableInfo.Column("phoneNumber", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("contactName", new TableInfo.Column("contactName", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("company", new TableInfo.Column("company", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsRemarks.put("callType", new TableInfo.Column("callType", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("remark", new TableInfo.Column("remark", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("status", new TableInfo.Column("status", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRemarks.put("syncState", new TableInfo.Column("syncState", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
@@ -182,7 +183,7 @@ public final class AppDatabase_Impl extends AppDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "d63e8ccc1a1c48174f01f693d8a7cc97", "89cbd27bb924910d1ebff9b80f1062c2");
+    }, "77b08502b1e1373a025f38b8bce5e011", "7573eee2fd420c853b3eb55055c5f279");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

@@ -44,7 +44,7 @@ public final class RemarkDao_Impl implements RemarkDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `remarks` (`id`,`clientCallId`,`phoneNumber`,`contactName`,`company`,`remark`,`status`,`syncState`,`attemptCount`,`createdAt`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `remarks` (`id`,`clientCallId`,`phoneNumber`,`contactName`,`company`,`callType`,`remark`,`status`,`syncState`,`attemptCount`,`createdAt`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -67,15 +67,20 @@ public final class RemarkDao_Impl implements RemarkDao {
         } else {
           statement.bindString(5, entity.getCompany());
         }
-        statement.bindString(6, entity.getRemark());
-        if (entity.getStatus() == null) {
-          statement.bindNull(7);
+        if (entity.getCallType() == null) {
+          statement.bindNull(6);
         } else {
-          statement.bindString(7, entity.getStatus());
+          statement.bindString(6, entity.getCallType());
         }
-        statement.bindString(8, entity.getSyncState());
-        statement.bindLong(9, entity.getAttemptCount());
-        statement.bindLong(10, entity.getCreatedAt());
+        statement.bindString(7, entity.getRemark());
+        if (entity.getStatus() == null) {
+          statement.bindNull(8);
+        } else {
+          statement.bindString(8, entity.getStatus());
+        }
+        statement.bindString(9, entity.getSyncState());
+        statement.bindLong(10, entity.getAttemptCount());
+        statement.bindLong(11, entity.getCreatedAt());
       }
     };
     this.__preparedStmtOfMarkState = new SharedSQLiteStatement(__db) {
@@ -189,6 +194,7 @@ public final class RemarkDao_Impl implements RemarkDao {
           final int _cursorIndexOfPhoneNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "phoneNumber");
           final int _cursorIndexOfContactName = CursorUtil.getColumnIndexOrThrow(_cursor, "contactName");
           final int _cursorIndexOfCompany = CursorUtil.getColumnIndexOrThrow(_cursor, "company");
+          final int _cursorIndexOfCallType = CursorUtil.getColumnIndexOrThrow(_cursor, "callType");
           final int _cursorIndexOfRemark = CursorUtil.getColumnIndexOrThrow(_cursor, "remark");
           final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
           final int _cursorIndexOfSyncState = CursorUtil.getColumnIndexOrThrow(_cursor, "syncState");
@@ -219,6 +225,12 @@ public final class RemarkDao_Impl implements RemarkDao {
             } else {
               _tmpCompany = _cursor.getString(_cursorIndexOfCompany);
             }
+            final String _tmpCallType;
+            if (_cursor.isNull(_cursorIndexOfCallType)) {
+              _tmpCallType = null;
+            } else {
+              _tmpCallType = _cursor.getString(_cursorIndexOfCallType);
+            }
             final String _tmpRemark;
             _tmpRemark = _cursor.getString(_cursorIndexOfRemark);
             final String _tmpStatus;
@@ -233,7 +245,7 @@ public final class RemarkDao_Impl implements RemarkDao {
             _tmpAttemptCount = _cursor.getInt(_cursorIndexOfAttemptCount);
             final long _tmpCreatedAt;
             _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
-            _item = new RemarkEntity(_tmpId,_tmpClientCallId,_tmpPhoneNumber,_tmpContactName,_tmpCompany,_tmpRemark,_tmpStatus,_tmpSyncState,_tmpAttemptCount,_tmpCreatedAt);
+            _item = new RemarkEntity(_tmpId,_tmpClientCallId,_tmpPhoneNumber,_tmpContactName,_tmpCompany,_tmpCallType,_tmpRemark,_tmpStatus,_tmpSyncState,_tmpAttemptCount,_tmpCreatedAt);
             _result.add(_item);
           }
           return _result;

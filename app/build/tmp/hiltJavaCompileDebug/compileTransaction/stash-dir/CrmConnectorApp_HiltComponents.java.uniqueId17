@@ -13,6 +13,7 @@ import com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel_HiltMo
 import com.digibrood.crmconnector.ui.screens.login.LoginViewModel_HiltModules;
 import com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel_HiltModules;
 import com.digibrood.crmconnector.ui.screens.register.RegisterViewModel_HiltModules;
+import com.digibrood.crmconnector.ui.screens.session.SessionViewModel_HiltModules;
 import com.digibrood.crmconnector.ui.screens.splash.SplashViewModel_HiltModules;
 import com.digibrood.crmconnector.worker.HeartbeatWorker_HiltModule;
 import com.digibrood.crmconnector.worker.RecordingUploadWorker_HiltModule;
@@ -186,6 +187,7 @@ public final class CrmConnectorApp_HiltComponents {
           LoginViewModel_HiltModules.KeyModule.class,
           PermissionsViewModel_HiltModules.KeyModule.class,
           RegisterViewModel_HiltModules.KeyModule.class,
+          SessionViewModel_HiltModules.KeyModule.class,
           SplashViewModel_HiltModules.KeyModule.class
       }
   )
@@ -229,6 +231,7 @@ public final class CrmConnectorApp_HiltComponents {
           LoginViewModel_HiltModules.BindsModule.class,
           PermissionsViewModel_HiltModules.BindsModule.class,
           RegisterViewModel_HiltModules.BindsModule.class,
+          SessionViewModel_HiltModules.BindsModule.class,
           SplashViewModel_HiltModules.BindsModule.class
       }
   )
