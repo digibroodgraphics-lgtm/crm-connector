@@ -5,7 +5,6 @@ import com.digibrood.crmconnector.data.local.entity.CallEntity
 import com.digibrood.crmconnector.data.prefs.SecurePrefs
 import com.digibrood.crmconnector.data.remote.NetworkResult
 import com.digibrood.crmconnector.data.remote.api.CrmApiService
-import com.digibrood.crmconnector.data.remote.dto.CallSyncItem
 import com.digibrood.crmconnector.data.remote.dto.CallSyncRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
 import com.digibrood.crmconnector.domain.model.CallType
@@ -136,50 +135,44 @@ class CallRepository @Inject constructor(
     }
 
     /**
-     * Syncs all pending calls to the CRM. Returns true if every queued call was
-     * acknowledged (or there was nothing to sync), false if a retry is needed.
+     * Syncs all pending calls to the CRM — ONE call per request (the format the
+     * CRM accepts). A call is marked synced when the CRM stores it; a per-call
+     * "rejected" result is treated as terminal (so it doesn't clog the queue) but
+     * its reason is surfaced. Transport/auth failures stop the run for a retry.
      */
-    suspend fun syncPending(batchSize: Int = 50): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncPending(batchSize: Int = 100): Boolean = withContext(Dispatchers.IO) {
+        val pending = (callDao.getByState(CallEntity.SyncState.PENDING, batchSize) +
+            callDao.getByState(CallEntity.SyncState.FAILED, batchSize))
+            .distinctBy { it.clientCallId }
+        if (pending.isEmpty()) return@withContext true
+
         var allOk = true
-        while (true) {
-            val pending = callDao.getByState(CallEntity.SyncState.PENDING, batchSize) +
-                callDao.getByState(CallEntity.SyncState.FAILED, batchSize)
-            val batch = pending.distinctBy { it.clientCallId }.take(batchSize)
-            if (batch.isEmpty()) break
+        var accepted = 0
+        var rejected = 0
+        var lastReason: String? = null
 
+        for (call in pending) {
             val now = System.currentTimeMillis()
-            callDao.markState(batch.map { it.clientCallId }, CallEntity.SyncState.SYNCING, now)
+            callDao.markState(listOf(call.clientCallId), CallEntity.SyncState.SYNCING, now)
 
-            val request = CallSyncRequest(
-                deviceId = deviceInfo.deviceId,
-                calls = batch.map { it.toSyncItem() }
-            )
-            when (val result = safeApiCall(moshi) { api.syncCalls(request) }) {
+            when (val result = safeApiCall(moshi) { api.syncCalls(call.toSyncRequest(deviceInfo.deviceId)) }) {
                 is NetworkResult.Success -> {
-                    // The CRM returns "ok":true and de-duplicates server-side. Mark
-                    // the batch as synced (terminal) and surface any per-call
-                    // rejections so they don't silently clog the queue.
-                    val body = result.data
-                    val resultsById = body.results.associateBy { it.clientCallId }
-                    batch.forEach { call ->
-                        callDao.markSynced(call.clientCallId, resultsById[call.clientCallId]?.callId)
-                    }
+                    val r = result.data.results.firstOrNull()
+                    val status = r?.status
+                    val isRejected = status.equals("rejected", true) || status.equals("error", true)
+                    // Either way it's terminal — mark synced so it leaves the queue.
+                    callDao.markSynced(call.clientCallId, r?.callId)
                     prefs.lastSyncEpochMs = now
-                    val rejected = body.results.filter {
-                        it.status.equals("rejected", true) || it.status.equals("error", true)
-                    }
-                    prefs.lastSyncResult = if (rejected.isEmpty()) {
-                        "OK: ${batch.size} call(s) accepted"
+                    if (isRejected) {
+                        rejected++
+                        lastReason = r?.reason ?: status
                     } else {
-                        val reason = rejected.firstOrNull()?.reason
-                            ?: rejected.firstOrNull()?.status ?: "unknown"
-                        "OK: ${batch.size - rejected.size} accepted, ${rejected.size} rejected ($reason)"
+                        accepted++
                     }
-                    if (batch.size < batchSize) break
                 }
 
                 is NetworkResult.ApiFailure -> {
-                    callDao.markState(batch.map { it.clientCallId }, CallEntity.SyncState.FAILED, now)
+                    callDao.markState(listOf(call.clientCallId), CallEntity.SyncState.FAILED, now)
                     prefs.lastSyncResult =
                         "API rejected: code=${result.errorCode ?: "?"} http=${result.httpCode}"
                     allOk = false
@@ -187,11 +180,19 @@ class CallRepository @Inject constructor(
                 }
 
                 is NetworkResult.NetworkError -> {
-                    callDao.markState(batch.map { it.clientCallId }, CallEntity.SyncState.FAILED, now)
+                    callDao.markState(listOf(call.clientCallId), CallEntity.SyncState.FAILED, now)
                     prefs.lastSyncResult = "Network error: ${result.throwable.message ?: "unknown"}"
                     allOk = false
                     break
                 }
+            }
+        }
+
+        if (accepted > 0 || rejected > 0) {
+            prefs.lastSyncResult = if (rejected == 0) {
+                "OK: $accepted call(s) accepted"
+            } else {
+                "OK: $accepted accepted, $rejected rejected (${lastReason ?: "unknown"})"
             }
         }
         allOk
@@ -207,7 +208,8 @@ class CallRepository @Inject constructor(
         hasRecording = hasRecording
     )
 
-    private fun CallEntity.toSyncItem() = CallSyncItem(
+    private fun CallEntity.toSyncRequest(deviceId: String) = CallSyncRequest(
+        deviceId = deviceId,
         clientCallId = clientCallId,
         phone = phoneNumber,
         callType = CallType.fromApi(callType).apiValue,
