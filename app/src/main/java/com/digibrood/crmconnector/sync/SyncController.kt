@@ -3,6 +3,7 @@ package com.digibrood.crmconnector.sync
 import com.digibrood.crmconnector.data.repository.CallRepository
 import com.digibrood.crmconnector.data.repository.ContactRepository
 import com.digibrood.crmconnector.data.repository.DeviceRepository
+import com.digibrood.crmconnector.data.repository.MetaRepository
 import com.digibrood.crmconnector.data.repository.RecordingRepository
 import com.digibrood.crmconnector.data.repository.SettingsRepository
 import com.digibrood.crmconnector.domain.model.DeviceStatus
@@ -27,6 +28,7 @@ class SyncController @Inject constructor(
     private val callRepository: CallRepository,
     private val recordingRepository: RecordingRepository,
     private val contactRepository: ContactRepository,
+    private val metaRepository: MetaRepository,
     private val connectivity: ConnectivityObserver
 ) {
 
@@ -43,6 +45,7 @@ class SyncController @Inject constructor(
         }
 
         settingsRepository.refreshSettings()
+        metaRepository.refresh()
 
         callRepository.captureNewCalls()
         val callsOk = callRepository.syncPending()

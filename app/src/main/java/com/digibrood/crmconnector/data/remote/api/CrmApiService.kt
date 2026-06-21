@@ -74,6 +74,9 @@ interface CrmApiService {
     @GET("settings")
     suspend fun getSettings(): Response<SettingsResponse>
 
+    @GET("meta")
+    suspend fun getMeta(): Response<com.digibrood.crmconnector.data.remote.dto.MetaResponse>
+
     @GET("branding")
     suspend fun getBranding(): Response<BrandingResponse>
 

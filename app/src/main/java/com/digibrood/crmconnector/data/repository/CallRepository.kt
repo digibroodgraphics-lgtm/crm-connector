@@ -73,6 +73,7 @@ class CallRepository @Inject constructor(
             val clientCallId = UUID.randomUUID().toString()
             val hasRecording = recordingRepository.discoverForCall(
                 clientCallId = clientCallId,
+                phone = captured.phoneNumber,
                 callStart = captured.startTime,
                 callEnd = captured.endTime
             )
@@ -112,7 +113,7 @@ class CallRepository @Inject constructor(
 
         val clientCallId = UUID.randomUUID().toString()
         val hasRecording = recordingRepository.discoverForCall(
-            clientCallId, recent.startTime, recent.endTime
+            clientCallId, recent.phoneNumber, recent.startTime, recent.endTime
         )
         callDao.insert(recent.toEntity(clientCallId, hasRecording))
         CapturedCallRef(clientCallId, recent.callType.apiValue, recent.phoneNumber)
@@ -128,7 +129,7 @@ class CallRepository @Inject constructor(
 
         val clientCallId = UUID.randomUUID().toString()
         val hasRecording = recordingRepository.discoverForCall(
-            clientCallId, captured.startTime, captured.endTime
+            clientCallId, captured.phoneNumber, captured.startTime, captured.endTime
         )
         val rowId = callDao.insert(captured.toEntity(clientCallId, hasRecording))
         if (rowId != -1L) clientCallId else null
@@ -198,6 +199,25 @@ class CallRepository @Inject constructor(
         allOk
     }
 
+    /**
+     * Re-syncs a call with the fields collected from the after-call popup
+     * (note/status/tags/stage). Uses the SAME client_call_id so the CRM updates
+     * the existing call/contact rather than creating a duplicate.
+     */
+    suspend fun applyPopupFields(
+        clientCallId: String,
+        note: String?,
+        status: String?,
+        tags: List<Int>?,
+        stageId: Int?
+    ): Boolean = withContext(Dispatchers.IO) {
+        val call = callDao.getByClientId(clientCallId) ?: return@withContext false
+        val result = safeApiCall(moshi) {
+            api.syncCalls(call.toSyncRequest(deviceInfo.deviceId, note, status, tags, stageId))
+        }
+        result is NetworkResult.Success
+    }
+
     private fun CapturedCall.toEntity(clientCallId: String, hasRecording: Boolean) = CallEntity(
         clientCallId = clientCallId,
         phoneNumber = phoneNumber,
@@ -208,14 +228,33 @@ class CallRepository @Inject constructor(
         hasRecording = hasRecording
     )
 
-    private fun CallEntity.toSyncRequest(deviceId: String) = CallSyncRequest(
-        deviceId = deviceId,
-        clientCallId = clientCallId,
-        phone = phoneNumber,
-        callType = CallType.fromApi(callType).apiValue,
-        startTime = TimeUtils.toIso8601(startTime),
-        endTime = TimeUtils.toIso8601(endTime),
-        duration = duration,
-        hasRecording = hasRecording
-    )
+    private fun CallEntity.toSyncRequest(
+        deviceId: String,
+        note: String? = null,
+        status: String? = null,
+        tags: List<Int>? = null,
+        stageId: Int? = null
+    ): CallSyncRequest {
+        val type = CallType.fromApi(callType).apiValue
+        val startIso = TimeUtils.toIso8601(startTime)
+        val endIso = TimeUtils.toIso8601(endTime)
+        return CallSyncRequest(
+            deviceId = deviceId,
+            clientCallId = clientCallId,
+            phone = phoneNumber,
+            number = phoneNumber,
+            callType = type,
+            direction = type,
+            startTime = startIso,
+            startedAt = startIso,
+            endTime = endIso,
+            endedAt = endIso,
+            duration = duration,
+            hasRecording = hasRecording,
+            note = note,
+            status = status,
+            tags = tags,
+            stageId = stageId
+        )
+    }
 }
