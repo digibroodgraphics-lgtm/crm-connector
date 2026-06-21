@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,12 +25,20 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -46,7 +56,9 @@ import dagger.hilt.android.AndroidEntryPoint
  * [com.digibrood.crmconnector.receiver.CallReceiver] when a connected call ends
  * and the CRM has the popup enabled. Requires "display over other apps".
  *
- * Missed/rejected calls are still logged but do NOT show this popup.
+ * The call itself is already queued/synced the moment it ends (see CallReceiver),
+ * so dismissing this popup never loses a call. Saving simply enriches the call
+ * with a note/status/tags. Missed/rejected calls are logged but show no popup.
  */
 @AndroidEntryPoint
 class CallPopupActivity : ComponentActivity() {
@@ -73,6 +85,8 @@ class CallPopupActivity : ComponentActivity() {
                     onCompanyChange = vm::onCompanyChange,
                     onPhoneChange = vm::onPhoneChange,
                     onRemarkChange = vm::onRemarkChange,
+                    onStatusSelected = vm::onStatusSelected,
+                    onTagToggled = vm::onTagToggled,
                     onSave = {
                         vm.save {
                             Toast.makeText(
@@ -110,6 +124,8 @@ private fun CallPopupContent(
     onCompanyChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onRemarkChange: (String) -> Unit,
+    onStatusSelected: (String?) -> Unit,
+    onTagToggled: (Int) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -172,6 +188,31 @@ private fun CallPopupContent(
                     )
                     Spacer(Modifier.height(10.dp))
 
+                    // D1: Status dropdown (single select).
+                    if (state.statusOptions.isNotEmpty()) {
+                        StatusDropdown(
+                            options = state.statusOptions,
+                            selectedValue = state.selectedStatus,
+                            onSelected = onStatusSelected
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
+
+                    // D1: Tags multi-select chips.
+                    if (state.tagOptions.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.popup_label_tags),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        TagChips(
+                            tags = state.tagOptions,
+                            selectedTagIds = state.selectedTagIds,
+                            onToggled = onTagToggled
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
+
                     OutlinedTextField(
                         value = state.remark,
                         onValueChange = onRemarkChange,
@@ -195,6 +236,76 @@ private fun CallPopupContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatusDropdown(
+    options: List<com.digibrood.crmconnector.data.remote.dto.MetaStatus>,
+    selectedValue: String?,
+    onSelected: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val noneLabel = stringResource(R.string.popup_status_none)
+    val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label ?: noneLabel
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.popup_label_status)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(noneLabel) },
+                onClick = {
+                    onSelected(null)
+                    expanded = false
+                }
+            )
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onSelected(option.value)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun TagChips(
+    tags: List<com.digibrood.crmconnector.data.remote.dto.MetaTag>,
+    selectedTagIds: Set<Int>,
+    onToggled: (Int) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        tags.forEach { tag ->
+            FilterChip(
+                selected = selectedTagIds.contains(tag.id),
+                onClick = { onToggled(tag.id) },
+                label = { Text(tag.name) }
+            )
         }
     }
 }

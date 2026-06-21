@@ -474,40 +474,40 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
 
     @IdentifierNameString
     private static final class LazyClassKeyProvider {
-      static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
-
       static String com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel = "com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel";
-
-      static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
-
-      static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_session_SessionViewModel = "com.digibrood.crmconnector.ui.screens.session.SessionViewModel";
 
-      static String com_digibrood_crmconnector_ui_screens_splash_SplashViewModel = "com.digibrood.crmconnector.ui.screens.splash.SplashViewModel";
-
       static String com_digibrood_crmconnector_ui_screens_register_RegisterViewModel = "com.digibrood.crmconnector.ui.screens.register.RegisterViewModel";
 
-      @KeepFieldType
-      DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
+      static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_splash_SplashViewModel = "com.digibrood.crmconnector.ui.screens.splash.SplashViewModel";
 
       @KeepFieldType
       PermissionsViewModel com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel2;
 
       @KeepFieldType
+      SessionViewModel com_digibrood_crmconnector_ui_screens_session_SessionViewModel2;
+
+      @KeepFieldType
+      RegisterViewModel com_digibrood_crmconnector_ui_screens_register_RegisterViewModel2;
+
+      @KeepFieldType
       CallPopupViewModel com_digibrood_crmconnector_overlay_CallPopupViewModel2;
+
+      @KeepFieldType
+      DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
 
       @KeepFieldType
       LoginViewModel com_digibrood_crmconnector_ui_screens_login_LoginViewModel2;
 
       @KeepFieldType
-      SessionViewModel com_digibrood_crmconnector_ui_screens_session_SessionViewModel2;
-
-      @KeepFieldType
       SplashViewModel com_digibrood_crmconnector_ui_screens_splash_SplashViewModel2;
-
-      @KeepFieldType
-      RegisterViewModel com_digibrood_crmconnector_ui_screens_register_RegisterViewModel2;
     }
   }
 
@@ -566,22 +566,19 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
 
     @IdentifierNameString
     private static final class LazyClassKeyProvider {
-      static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
-
       static String com_digibrood_crmconnector_overlay_CallPopupViewModel = "com.digibrood.crmconnector.overlay.CallPopupViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel = "com.digibrood.crmconnector.ui.screens.permissions.PermissionsViewModel";
 
-      static String com_digibrood_crmconnector_ui_screens_session_SessionViewModel = "com.digibrood.crmconnector.ui.screens.session.SessionViewModel";
-
       static String com_digibrood_crmconnector_ui_screens_register_RegisterViewModel = "com.digibrood.crmconnector.ui.screens.register.RegisterViewModel";
-
-      static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
 
       static String com_digibrood_crmconnector_ui_screens_splash_SplashViewModel = "com.digibrood.crmconnector.ui.screens.splash.SplashViewModel";
 
-      @KeepFieldType
-      DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
+      static String com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel = "com.digibrood.crmconnector.ui.screens.dashboard.DashboardViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_session_SessionViewModel = "com.digibrood.crmconnector.ui.screens.session.SessionViewModel";
+
+      static String com_digibrood_crmconnector_ui_screens_login_LoginViewModel = "com.digibrood.crmconnector.ui.screens.login.LoginViewModel";
 
       @KeepFieldType
       CallPopupViewModel com_digibrood_crmconnector_overlay_CallPopupViewModel2;
@@ -590,16 +587,19 @@ public final class DaggerCrmConnectorApp_HiltComponents_SingletonC {
       PermissionsViewModel com_digibrood_crmconnector_ui_screens_permissions_PermissionsViewModel2;
 
       @KeepFieldType
-      SessionViewModel com_digibrood_crmconnector_ui_screens_session_SessionViewModel2;
-
-      @KeepFieldType
       RegisterViewModel com_digibrood_crmconnector_ui_screens_register_RegisterViewModel2;
 
       @KeepFieldType
-      LoginViewModel com_digibrood_crmconnector_ui_screens_login_LoginViewModel2;
+      SplashViewModel com_digibrood_crmconnector_ui_screens_splash_SplashViewModel2;
 
       @KeepFieldType
-      SplashViewModel com_digibrood_crmconnector_ui_screens_splash_SplashViewModel2;
+      DashboardViewModel com_digibrood_crmconnector_ui_screens_dashboard_DashboardViewModel2;
+
+      @KeepFieldType
+      SessionViewModel com_digibrood_crmconnector_ui_screens_session_SessionViewModel2;
+
+      @KeepFieldType
+      LoginViewModel com_digibrood_crmconnector_ui_screens_login_LoginViewModel2;
     }
 
     private static final class SwitchingProvider<T> implements Provider<T> {

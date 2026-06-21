@@ -96,6 +96,8 @@
     <string name="popup_hint_remark">Add a remark about this call</string>
     <string name="popup_label_remark">Remark</string>
     <string name="popup_label_status">Status</string>
+    <string name="popup_status_none">No status</string>
+    <string name="popup_label_tags">Tags</string>
     <string name="popup_save">Save</string>
     <string name="popup_dismiss">Dismiss</string>
     <string name="popup_saved">Remark saved</string>

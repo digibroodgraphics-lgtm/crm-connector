@@ -58,7 +58,7 @@ class RecordingRepository @Inject constructor(
      * Looks for a recording belonging to a call and queues it.
      * @return true if an uploadable recording (<= 50 MB) was found/queued.
      */
-    suspend fun discoverForCall(clientCallId: String, phone: String?, callStart: Long, callEnd: Long): Boolean =
+    suspend fun discoverForCall(clientCallId: String, callStart: Long, callEnd: Long): Boolean =
         withContext(Dispatchers.IO) {
             val file = scanner.findForCall(callStart, callEnd, extraScanPaths()) ?: return@withContext false
 
@@ -68,7 +68,6 @@ class RecordingRepository @Inject constructor(
             recordingDao.insert(
                 RecordingEntity(
                     clientCallId = clientCallId,
-                    phoneNumber = phone,
                     filePath = file.path,
                     fileName = file.name,
                     mimeType = file.mimeType,
@@ -139,7 +138,7 @@ class RecordingRepository @Inject constructor(
             return false
         }
 
-        // Step 3: confirm (only after a successful PUT, success=true)
+        // Step 3: confirm
         val confirm = safeApiCall(moshi) {
             api.confirmRecording(
                 ConfirmRequest(
@@ -147,7 +146,6 @@ class RecordingRepository @Inject constructor(
                     recordingId = presignBody.recordingId,
                     objectKey = presignBody.objectKey,
                     clientCallId = rec.clientCallId,
-                    phone = rec.phoneNumber,
                     fileSize = file.length(),
                     success = true
                 )

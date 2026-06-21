@@ -50,7 +50,7 @@ public final class RecordingDao_Impl implements RecordingDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR IGNORE INTO `recordings` (`id`,`clientCallId`,`phoneNumber`,`filePath`,`fileName`,`mimeType`,`fileSize`,`recordedAt`,`uploadState`,`attemptCount`,`lastAttemptAt`,`recordingId`,`objectKey`,`createdAt`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR IGNORE INTO `recordings` (`id`,`clientCallId`,`filePath`,`fileName`,`mimeType`,`fileSize`,`recordedAt`,`uploadState`,`attemptCount`,`lastAttemptAt`,`recordingId`,`objectKey`,`createdAt`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -58,30 +58,25 @@ public final class RecordingDao_Impl implements RecordingDao {
           @NonNull final RecordingEntity entity) {
         statement.bindLong(1, entity.getId());
         statement.bindString(2, entity.getClientCallId());
-        if (entity.getPhoneNumber() == null) {
-          statement.bindNull(3);
-        } else {
-          statement.bindString(3, entity.getPhoneNumber());
-        }
-        statement.bindString(4, entity.getFilePath());
-        statement.bindString(5, entity.getFileName());
-        statement.bindString(6, entity.getMimeType());
-        statement.bindLong(7, entity.getFileSize());
-        statement.bindLong(8, entity.getRecordedAt());
-        statement.bindString(9, entity.getUploadState());
-        statement.bindLong(10, entity.getAttemptCount());
-        statement.bindLong(11, entity.getLastAttemptAt());
+        statement.bindString(3, entity.getFilePath());
+        statement.bindString(4, entity.getFileName());
+        statement.bindString(5, entity.getMimeType());
+        statement.bindLong(6, entity.getFileSize());
+        statement.bindLong(7, entity.getRecordedAt());
+        statement.bindString(8, entity.getUploadState());
+        statement.bindLong(9, entity.getAttemptCount());
+        statement.bindLong(10, entity.getLastAttemptAt());
         if (entity.getRecordingId() == null) {
-          statement.bindNull(12);
+          statement.bindNull(11);
         } else {
-          statement.bindString(12, entity.getRecordingId());
+          statement.bindString(11, entity.getRecordingId());
         }
         if (entity.getObjectKey() == null) {
-          statement.bindNull(13);
+          statement.bindNull(12);
         } else {
-          statement.bindString(13, entity.getObjectKey());
+          statement.bindString(12, entity.getObjectKey());
         }
-        statement.bindLong(14, entity.getCreatedAt());
+        statement.bindLong(13, entity.getCreatedAt());
       }
     };
     this.__preparedStmtOfMarkState = new SharedSQLiteStatement(__db) {
@@ -272,7 +267,6 @@ public final class RecordingDao_Impl implements RecordingDao {
         try {
           final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
           final int _cursorIndexOfClientCallId = CursorUtil.getColumnIndexOrThrow(_cursor, "clientCallId");
-          final int _cursorIndexOfPhoneNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "phoneNumber");
           final int _cursorIndexOfFilePath = CursorUtil.getColumnIndexOrThrow(_cursor, "filePath");
           final int _cursorIndexOfFileName = CursorUtil.getColumnIndexOrThrow(_cursor, "fileName");
           final int _cursorIndexOfMimeType = CursorUtil.getColumnIndexOrThrow(_cursor, "mimeType");
@@ -291,12 +285,6 @@ public final class RecordingDao_Impl implements RecordingDao {
             _tmpId = _cursor.getLong(_cursorIndexOfId);
             final String _tmpClientCallId;
             _tmpClientCallId = _cursor.getString(_cursorIndexOfClientCallId);
-            final String _tmpPhoneNumber;
-            if (_cursor.isNull(_cursorIndexOfPhoneNumber)) {
-              _tmpPhoneNumber = null;
-            } else {
-              _tmpPhoneNumber = _cursor.getString(_cursorIndexOfPhoneNumber);
-            }
             final String _tmpFilePath;
             _tmpFilePath = _cursor.getString(_cursorIndexOfFilePath);
             final String _tmpFileName;
@@ -327,7 +315,7 @@ public final class RecordingDao_Impl implements RecordingDao {
             }
             final long _tmpCreatedAt;
             _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
-            _item = new RecordingEntity(_tmpId,_tmpClientCallId,_tmpPhoneNumber,_tmpFilePath,_tmpFileName,_tmpMimeType,_tmpFileSize,_tmpRecordedAt,_tmpUploadState,_tmpAttemptCount,_tmpLastAttemptAt,_tmpRecordingId,_tmpObjectKey,_tmpCreatedAt);
+            _item = new RecordingEntity(_tmpId,_tmpClientCallId,_tmpFilePath,_tmpFileName,_tmpMimeType,_tmpFileSize,_tmpRecordedAt,_tmpUploadState,_tmpAttemptCount,_tmpLastAttemptAt,_tmpRecordingId,_tmpObjectKey,_tmpCreatedAt);
             _result.add(_item);
           }
           return _result;
@@ -355,7 +343,6 @@ public final class RecordingDao_Impl implements RecordingDao {
         try {
           final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
           final int _cursorIndexOfClientCallId = CursorUtil.getColumnIndexOrThrow(_cursor, "clientCallId");
-          final int _cursorIndexOfPhoneNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "phoneNumber");
           final int _cursorIndexOfFilePath = CursorUtil.getColumnIndexOrThrow(_cursor, "filePath");
           final int _cursorIndexOfFileName = CursorUtil.getColumnIndexOrThrow(_cursor, "fileName");
           final int _cursorIndexOfMimeType = CursorUtil.getColumnIndexOrThrow(_cursor, "mimeType");
@@ -373,12 +360,6 @@ public final class RecordingDao_Impl implements RecordingDao {
             _tmpId = _cursor.getLong(_cursorIndexOfId);
             final String _tmpClientCallId;
             _tmpClientCallId = _cursor.getString(_cursorIndexOfClientCallId);
-            final String _tmpPhoneNumber;
-            if (_cursor.isNull(_cursorIndexOfPhoneNumber)) {
-              _tmpPhoneNumber = null;
-            } else {
-              _tmpPhoneNumber = _cursor.getString(_cursorIndexOfPhoneNumber);
-            }
             final String _tmpFilePath;
             _tmpFilePath = _cursor.getString(_cursorIndexOfFilePath);
             final String _tmpFileName;
@@ -409,7 +390,7 @@ public final class RecordingDao_Impl implements RecordingDao {
             }
             final long _tmpCreatedAt;
             _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
-            _result = new RecordingEntity(_tmpId,_tmpClientCallId,_tmpPhoneNumber,_tmpFilePath,_tmpFileName,_tmpMimeType,_tmpFileSize,_tmpRecordedAt,_tmpUploadState,_tmpAttemptCount,_tmpLastAttemptAt,_tmpRecordingId,_tmpObjectKey,_tmpCreatedAt);
+            _result = new RecordingEntity(_tmpId,_tmpClientCallId,_tmpFilePath,_tmpFileName,_tmpMimeType,_tmpFileSize,_tmpRecordedAt,_tmpUploadState,_tmpAttemptCount,_tmpLastAttemptAt,_tmpRecordingId,_tmpObjectKey,_tmpCreatedAt);
           } else {
             _result = null;
           }

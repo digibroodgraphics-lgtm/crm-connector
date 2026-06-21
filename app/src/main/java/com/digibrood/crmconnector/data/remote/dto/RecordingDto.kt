@@ -23,14 +23,12 @@ data class PresignResponse(
     @Json(name = "headers") val headers: Map<String, String>? = null
 )
 
-/** POST /recordings/confirm request body. Includes phone as a safety net so the
- * CRM can attach the recording by number even if ids differ. */
+/** POST /recordings/confirm request body. */
 data class ConfirmRequest(
     @Json(name = "device_id") val deviceId: String,
     @Json(name = "recording_id") val recordingId: String? = null,
     @Json(name = "object_key") val objectKey: String? = null,
     @Json(name = "client_call_id") val clientCallId: String,
-    @Json(name = "phone") val phone: String? = null,
     @Json(name = "file_size") val fileSize: Long,
     @Json(name = "success") val success: Boolean = true
 )

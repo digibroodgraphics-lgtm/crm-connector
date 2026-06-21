@@ -81,8 +81,18 @@ generic assumptions.**
   succeed (HTTP 200) BEFORE confirm; only confirm with success:true.
 - **GET /settings** → `{ok, call_popup_enabled, recording_path, recording_upload, auto_sync,
   heartbeat_interval_sec, ...}`.
+- **GET /meta** → `{ok, tags:[{id,name}], statuses:[{value,label}], stages:[{id,name}]}`.
+  Drives the Status (single) + Tags (multi-select) dropdowns in the after-call popup.
+  Cached; refreshed on launch / each sync cycle so new CRM tags appear automatically.
 - **GET /branding** → `{ok, app_name, logo_url, icon_url, use_crm_favicon}`.
 - **GET /stats?device_id=...** → `{ok, connection_status, calls_today, uploads_today, last_sync}`.
+
+**D3 extended /calls/sync payload (superset, all optional extras):** in addition to the
+core fields above, the app now also sends `number`, `direction`, `started_at`, `ended_at`
+(duplicates of phone/call_type/start_time/end_time for compatibility) plus optional
+`platform`, `note`, `status`, `tags:[int]`, `stage_id`. When the popup is filled the app
+re-syncs the SAME `client_call_id` with note/status/tags so the CRM applies them to the
+matched/created contact; if the popup is dismissed the call is still uploaded (empty extras).
 
 **Recording rule:** Use ONE stable `client_call_id` (UUID) per call across
 /calls/sync, /recordings/presign, /recordings/confirm and /calls/remark so the CRM
@@ -105,7 +115,8 @@ service           SyncForegroundService (dataSync), NotificationHelper
 sync              SyncController (orchestration), SyncManager (start/stop by status)
 worker            SyncWorker, RecordingUploadWorker, HeartbeatWorker, SyncScheduler
 receiver          CallReceiver (real-time capture + popup), BootReceiver
-overlay           CallPopupActivity + CallPopupViewModel (Name/Company/Phone/Remark)
+overlay           CallPopupActivity + CallPopupViewModel (Name/Company/Phone/Status/Tags/Remark)
+data/repository   ... + MetaRepository (caches /meta tags+statuses, DEFAULT_STATUSES fallback)
 ui/...            theme, navigation (CrmNavGraph + session re-login), screens
                   (splash, login, permissions, register, dashboard), components
 util              Constants, UrlValidator, DeviceInfoProvider, ConnectivityObserver,
@@ -135,10 +146,32 @@ Key behaviors:
 - ✅ Auto re-login when session dies (e.g., CRM redeploy / INVALID_TOKEN)
 - ✅ Cleaner dashboard; crash catcher; missed-call logging without popup
 
+### D1–D7 spec (CRM developer change request) — status
+- ✅ **D1 — Status & Tags in popup:** `GET /meta` wired (`MetaRepository`, cached + refreshed
+  each sync). Popup now has a **Status** dropdown (single) and **Tags** chips (multi-select).
+  Selections are sent with the call (note/status/tags) on save.
+- ✅ **D2 — Never silently log out:** `TokenAuthenticator` refreshes on 401 and retries once;
+  only clears the session on `APP_LOGIN_DISABLED`. Transient/5xx/network keep the session +
+  refresh token (which persist across app updates in EncryptedSharedPreferences).
+- ✅ **D3 — Upload whether popup filled OR dismissed:** the call is queued + synced the moment
+  it ends (CallReceiver), independent of the popup. Saving the popup re-syncs the SAME
+  `client_call_id` with note/status/tags via `CallRepository.applyPopupFields()`. Persistent
+  Room queue with retry guarantees no call is lost.
+- ⏳ **D4 / D5 — AI analysis & auto-summary toggle:** CRM-side, later phase. No app work needed
+  (recordings already upload via presign→PUT→confirm).
+- 🔶 **D6 — Capture VoIP (WhatsApp etc.):** payload supports a `platform` field; full VoIP
+  detection (Accessibility/notification listener) is best-effort and NOT yet implemented —
+  scheduled as a follow-up so it never blocks the core PSTN flow.
+- ⏳ **D7 — Whitelist propose/approve:** awaiting CRM `whitelist/propose` endpoint + the
+  `whitelist` array on `/device/status`. App-side UI to be added once that ships.
+- ✅ **Cross-cutting:** unknown numbers are logged but NOT auto-created as contacts (only the
+  popup save / CRM-side logic creates a contact).
+
 ## 7. Open items / notes
 - Recording upload only happens if the phone actually saves call recordings to disk
   (Samsung: Phone → Settings → Record calls → Auto record calls → On).
-- No CRM-developer changes are currently outstanding (presign + lookup were fixed).
+- **D6 (VoIP capture)** and **D7 (whitelist)** are agreed but not yet implemented in-app —
+  D6 is best-effort/follow-up, D7 waits on the CRM `whitelist/propose` endpoint.
 - Test account credentials are NOT stored in this repo for security; the owner provides
   them privately for live testing.
 
@@ -146,4 +179,6 @@ Key behaviors:
 Aligned all DTO field names to the live CRM, fixed the Samsung call-log "Invalid token
 LIMIT" crash, added device_id to /device/status, robust ISO-8601 parsing, real-time
 capture + shared client_call_id, one-call-per-request /calls/sync, recording-confirm
-phone safety net. See `git log` for details.
+phone safety net. **Latest:** implemented D1 (Status/Tags dropdowns via /meta), D2
+(never silently log out — refresh-and-retry, only logout on APP_LOGIN_DISABLED), and D3
+(upload on dismiss + send note/status/tags via applyPopupFields). See `git log` for details.
