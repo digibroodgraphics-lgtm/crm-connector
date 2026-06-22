@@ -94,6 +94,29 @@ class SyncScheduler @Inject constructor(
         )
     }
 
+    /**
+     * Delayed recording-upload passes. Phones finalise the recording file a few
+     * seconds (sometimes more) after a call ends, so we re-run the upload (which
+     * backfills late-written recordings) a short while after the call rather than
+     * waiting for the next periodic cycle.
+     */
+    fun scheduleDelayedRecordingUpload(delaysSeconds: List<Long> = listOf(60L, 180L)) {
+        delaysSeconds.forEach { delay ->
+            val request = OneTimeWorkRequestBuilder<RecordingUploadWorker>()
+                .setConstraints(networkConstraint)
+                .setInitialDelay(delay, TimeUnit.SECONDS)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .addTag(Constants.WORK_TAG)
+                .build()
+
+            workManager.enqueueUniqueWork(
+                "${Constants.WORK_RECORDING_UPLOAD}_$delay",
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
+        }
+    }
+
     /** Starts periodic work. Called when the device becomes approved. */
     fun startAll() {
         schedulePeriodicSync()

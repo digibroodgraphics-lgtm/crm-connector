@@ -49,6 +49,15 @@ interface CallDao {
     @Query("SELECT MAX(startTime) FROM calls")
     suspend fun latestCapturedStartTime(): Long?
 
+    @Query("SELECT * FROM calls WHERE hasRecording = 0 AND startTime >= :since ORDER BY startTime DESC LIMIT :limit")
+    suspend fun callsWithoutRecordingSince(since: Long, limit: Int): List<CallEntity>
+
+    @Query("UPDATE calls SET hasRecording = 1 WHERE clientCallId = :clientCallId")
+    suspend fun markHasRecording(clientCallId: String)
+
+    @Query("UPDATE calls SET syncState = 'PENDING' WHERE clientCallId = :clientCallId AND syncState = 'SYNCED'")
+    suspend fun requeueForResync(clientCallId: String)
+
     @Query("SELECT * FROM calls WHERE syncState = 'SYNCED' ORDER BY lastAttemptAt DESC, startTime DESC LIMIT 1")
     suspend fun lastSyncedCall(): CallEntity?
 }

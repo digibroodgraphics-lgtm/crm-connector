@@ -107,6 +107,9 @@ class CallReceiver : BroadcastReceiver() {
                 // Push the queue (uploads the call and any recording).
                 scheduler.requestImmediateSync()
                 scheduler.requestRecordingUpload()
+                // Recording files are written a few seconds after the call ends —
+                // re-run the upload shortly after so they're picked up promptly.
+                scheduler.scheduleDelayedRecordingUpload()
 
                 // Connected calls show the popup with the SAME id + call_type so the
                 // remark links to the call and recording. Missed/rejected: no popup.

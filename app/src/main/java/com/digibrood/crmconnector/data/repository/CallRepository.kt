@@ -151,6 +151,44 @@ class CallRepository @Inject constructor(
     }
 
     /**
+     * Recovers recordings that were written to disk AFTER their call was first
+     * captured. Phones finalise the recording file a few seconds (sometimes more)
+     * after a call ends, so the recording often does not exist yet at capture
+     * time. This re-scans recent calls that still have no recording and, if a
+     * matching file has since appeared, queues it for upload and flips the call's
+     * has_recording flag (re-syncing it under the SAME client_call_id so the CRM
+     * record stays accurate). Runs every sync cycle.
+     *
+     * @return the number of recordings newly discovered.
+     */
+    suspend fun backfillRecordings(): Int = withContext(Dispatchers.IO) {
+        val activatedAt = prefs.activatedAtEpochMs
+        if (activatedAt <= 0L) return@withContext 0
+
+        // Look back over recent calls (up to 3 days) that have no recording yet.
+        val lookback = System.currentTimeMillis() - 3L * 24 * 60 * 60 * 1000L
+        val since = maxOf(activatedAt, lookback)
+        val calls = callDao.callsWithoutRecordingSince(since, 50)
+
+        var found = 0
+        for (call in calls) {
+            if (recordingRepository.hasRecordingForCall(call.clientCallId)) continue
+            val discovered = recordingRepository.discoverForCall(
+                clientCallId = call.clientCallId,
+                phone = call.phoneNumber,
+                callStart = call.startTime,
+                callEnd = call.endTime
+            )
+            if (discovered) {
+                callDao.markHasRecording(call.clientCallId)
+                callDao.requeueForResync(call.clientCallId)
+                found++
+            }
+        }
+        found
+    }
+
+    /**
      * Syncs all pending calls to the CRM — ONE call per request (the format the
      * CRM accepts). A call is marked synced when the CRM stores it; a per-call
      * "rejected" result is treated as terminal (so it doesn't clog the queue) but

@@ -52,6 +52,7 @@ class SyncController @Inject constructor(
         whitelistRepository.retryUnproposed()
 
         callRepository.captureNewCalls()
+        callRepository.backfillRecordings()
         val callsOk = callRepository.syncPending()
         val recordingsOk = recordingRepository.uploadPending()
         contactRepository.syncPendingRemarks()
@@ -63,7 +64,11 @@ class SyncController @Inject constructor(
     suspend fun runRecordingUpload(): Boolean {
         if (!connectivity.isOnline()) return false
         if (deviceRepository.currentStatus() != DeviceStatus.APPROVED) return true
-        return recordingRepository.uploadPending()
+        // Backfill first so recordings written after the call are picked up.
+        callRepository.backfillRecordings()
+        val callsOk = callRepository.syncPending()
+        val recordingsOk = recordingRepository.uploadPending()
+        return callsOk && recordingsOk
     }
 
     /** Sends a heartbeat and refreshes the cached device status. */

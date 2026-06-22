@@ -44,6 +44,11 @@ class RecordingRepository @Inject constructor(
 
     suspend fun uploadedTodayCount(since: Long): Int = recordingDao.uploadedSince(since)
 
+    /** True if a recording row already exists for this call. */
+    suspend fun hasRecordingForCall(clientCallId: String): Boolean = withContext(Dispatchers.IO) {
+        recordingDao.getByCall(clientCallId) != null
+    }
+
     /** Number of call-recording files discoverable on the device since activation (diagnostics). */
     suspend fun recordingFilesOnPhone(): Int = withContext(Dispatchers.IO) {
         runCatching { scanner.scan(extraScanPaths(), prefs.activatedAtEpochMs).size }.getOrDefault(0)

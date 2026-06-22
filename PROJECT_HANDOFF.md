@@ -147,6 +147,13 @@ Key behaviors:
   plus a WorkManager safety-net scan; de-duped by (number, startTime).
 - Recordings: scans ONLY call-recording folders + MediaStore paths containing
   record/call/voice, and only files modified after activation. 50 MB cap. Direct PUT to R2.
+  **Recording backfill (important):** because phones finalise the recording FILE a few seconds
+  after a call ends, the file usually doesn't exist yet at capture time. `CallRepository.backfillRecordings()`
+  re-scans recent calls (last 3 days) that still have no recording on every sync cycle and queues
+  any file that has since appeared (flipping has_recording and re-syncing the SAME client_call_id).
+  After a call, the app also schedules delayed recording-upload passes (~60s and ~180s) so a late
+  file uploads promptly instead of waiting for the next periodic cycle. The CRM links a recording
+  to its call by client_call_id/phone even if the recording is confirmed before/after the call sync.
 - Missed/rejected calls: logged, but NO popup.
 - Dashboard: status, connection, registered number, calls synced today, last synced
   number, recordings uploaded today, pending queue, last sync. Diagnostics behind a toggle.
