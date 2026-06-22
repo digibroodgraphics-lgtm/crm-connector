@@ -6,6 +6,7 @@ import com.digibrood.crmconnector.data.repository.DeviceRepository
 import com.digibrood.crmconnector.data.repository.MetaRepository
 import com.digibrood.crmconnector.data.repository.RecordingRepository
 import com.digibrood.crmconnector.data.repository.SettingsRepository
+import com.digibrood.crmconnector.data.repository.WhitelistRepository
 import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.util.ConnectivityObserver
 import javax.inject.Inject
@@ -29,6 +30,7 @@ class SyncController @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val contactRepository: ContactRepository,
     private val metaRepository: MetaRepository,
+    private val whitelistRepository: WhitelistRepository,
     private val connectivity: ConnectivityObserver
 ) {
 
@@ -46,6 +48,8 @@ class SyncController @Inject constructor(
 
         settingsRepository.refreshSettings()
         metaRepository.refresh()
+        // Best-effort: re-send any whitelist proposals that never reached the CRM.
+        whitelistRepository.retryUnproposed()
 
         callRepository.captureNewCalls()
         val callsOk = callRepository.syncPending()

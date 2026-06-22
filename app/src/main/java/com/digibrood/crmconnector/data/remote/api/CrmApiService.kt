@@ -82,4 +82,9 @@ interface CrmApiService {
 
     @GET("stats")
     suspend fun getStats(): Response<StatsResponse>
+
+    @POST("whitelist/propose")
+    suspend fun proposeWhitelist(
+        @Body body: com.digibrood.crmconnector.data.remote.dto.WhitelistProposeRequest
+    ): Response<com.digibrood.crmconnector.data.remote.dto.WhitelistProposeResponse>
 }

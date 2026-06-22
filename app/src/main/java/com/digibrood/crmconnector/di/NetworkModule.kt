@@ -5,6 +5,7 @@ import com.digibrood.crmconnector.data.remote.api.CrmApiService
 import com.digibrood.crmconnector.data.remote.interceptor.AuthInterceptor
 import com.digibrood.crmconnector.data.remote.interceptor.DynamicBaseUrlInterceptor
 import com.digibrood.crmconnector.data.remote.interceptor.HttpsEnforcementInterceptor
+import com.digibrood.crmconnector.data.remote.interceptor.SessionGuardInterceptor
 import com.digibrood.crmconnector.data.remote.interceptor.TokenAuthenticator
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -55,12 +56,14 @@ object NetworkModule {
         https: HttpsEnforcementInterceptor,
         dynamicBaseUrl: DynamicBaseUrlInterceptor,
         auth: AuthInterceptor,
+        sessionGuard: SessionGuardInterceptor,
         authenticator: TokenAuthenticator,
         logging: HttpLoggingInterceptor
     ): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(https)
         .addInterceptor(dynamicBaseUrl)
         .addInterceptor(auth)
+        .addInterceptor(sessionGuard)
         .addInterceptor(logging)
         .authenticator(authenticator)
         .connectTimeout(30, TimeUnit.SECONDS)

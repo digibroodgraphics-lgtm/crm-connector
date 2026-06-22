@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,6 +52,7 @@ import com.digibrood.crmconnector.ui.theme.StatusRed
 @Composable
 fun DashboardScreen(
     onChangeNumber: () -> Unit,
+    onOpenWhitelist: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -60,6 +62,9 @@ fun DashboardScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.dashboard_title)) },
                 actions = {
+                    IconButton(onClick = onOpenWhitelist) {
+                        Icon(Icons.Filled.Shield, contentDescription = "Whitelist numbers")
+                    }
                     IconButton(onClick = viewModel::refresh, enabled = !state.refreshing) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                     }
@@ -118,6 +123,15 @@ fun DashboardScreen(
             }
 
             Spacer(Modifier.height(20.dp))
+            OutlinedButton(
+                onClick = onOpenWhitelist,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text("Whitelist numbers")
+            }
+            Spacer(Modifier.height(12.dp))
             OutlinedButton(
                 onClick = onChangeNumber,
                 modifier = Modifier.fillMaxWidth()

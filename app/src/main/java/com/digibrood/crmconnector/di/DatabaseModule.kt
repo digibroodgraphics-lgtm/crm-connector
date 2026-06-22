@@ -6,6 +6,7 @@ import com.digibrood.crmconnector.data.local.AppDatabase
 import com.digibrood.crmconnector.data.local.dao.CallDao
 import com.digibrood.crmconnector.data.local.dao.RecordingDao
 import com.digibrood.crmconnector.data.local.dao.RemarkDao
+import com.digibrood.crmconnector.data.local.dao.WhitelistDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,4 +34,7 @@ object DatabaseModule {
 
     @Provides
     fun provideRemarkDao(db: AppDatabase): RemarkDao = db.remarkDao()
+
+    @Provides
+    fun provideWhitelistDao(db: AppDatabase): WhitelistDao = db.whitelistDao()
 }

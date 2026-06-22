@@ -12,6 +12,7 @@ object Routes {
     const val PERMISSIONS = "permissions"
     const val REGISTER = "register"
     const val DASHBOARD = "dashboard"
+    const val WHITELIST = "whitelist"
 }
 
 /**

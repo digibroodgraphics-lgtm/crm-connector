@@ -16,6 +16,7 @@ import com.digibrood.crmconnector.ui.screens.permissions.PermissionsScreen
 import com.digibrood.crmconnector.ui.screens.register.RegisterScreen
 import com.digibrood.crmconnector.ui.screens.session.SessionViewModel
 import com.digibrood.crmconnector.ui.screens.splash.SplashScreen
+import com.digibrood.crmconnector.ui.screens.whitelist.WhitelistScreen
 
 /**
  * Top-level navigation graph. Screens advance the user through the onboarding
@@ -70,8 +71,13 @@ fun CrmNavGraph(navController: NavHostController = rememberNavController()) {
 
         composable(Routes.DASHBOARD) {
             DashboardScreen(
-                onChangeNumber = { navController.navigate(Routes.REGISTER) }
+                onChangeNumber = { navController.navigate(Routes.REGISTER) },
+                onOpenWhitelist = { navController.navigate(Routes.WHITELIST) }
             )
+        }
+
+        composable(Routes.WHITELIST) {
+            WhitelistScreen(onBack = { navController.popBackStack() })
         }
     }
 }

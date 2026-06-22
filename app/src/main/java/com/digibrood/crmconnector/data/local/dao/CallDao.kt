@@ -43,6 +43,9 @@ interface CallDao {
     @Query("DELETE FROM calls WHERE syncState = 'SYNCED' AND createdAt < :olderThan")
     suspend fun purgeSyncedOlderThan(olderThan: Long)
 
+    @Query("DELETE FROM calls WHERE clientCallId IN (:ids)")
+    suspend fun deleteByClientIds(ids: List<String>)
+
     @Query("SELECT MAX(startTime) FROM calls")
     suspend fun latestCapturedStartTime(): Long?
 

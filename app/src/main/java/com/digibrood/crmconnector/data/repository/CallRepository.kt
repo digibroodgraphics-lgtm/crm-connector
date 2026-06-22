@@ -12,6 +12,7 @@ import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.util.CallLogReader
 import com.digibrood.crmconnector.util.CapturedCall
 import com.digibrood.crmconnector.util.DeviceInfoProvider
+import com.digibrood.crmconnector.util.PhoneUtils
 import com.digibrood.crmconnector.util.TimeUtils
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +42,8 @@ class CallRepository @Inject constructor(
     private val prefs: SecurePrefs,
     private val callLogReader: CallLogReader,
     private val deviceInfo: DeviceInfoProvider,
-    private val recordingRepository: RecordingRepository
+    private val recordingRepository: RecordingRepository,
+    private val whitelistRepository: WhitelistRepository
 ) {
 
     fun pendingCountFlow(): Flow<Int> = callDao.pendingCount()
@@ -63,8 +65,13 @@ class CallRepository @Inject constructor(
         if (status != DeviceStatus.APPROVED || activatedAt <= 0L) return@withContext 0
 
         val watermark = maxOf(activatedAt, callDao.latestCapturedStartTime() ?: 0L)
+        val approved = whitelistRepository.approvedNumbers()
         val newCalls = callLogReader.readCallsSince(watermark)
-            .filter { it.startTime > activatedAt && it.phoneNumber.isNotBlank() }
+            .filter {
+                it.startTime > activatedAt &&
+                    it.phoneNumber.isNotBlank() &&
+                    !approved.contains(PhoneUtils.normalize(it.phoneNumber))
+            }
 
         var inserted = 0
         for (captured in newCalls) {
@@ -101,6 +108,10 @@ class CallRepository @Inject constructor(
         if (recent.startTime < callStartedAtApprox - 60_000L) return@withContext null
         if (recent.startTime <= activatedAt) return@withContext null
         if (recent.phoneNumber.isBlank()) return@withContext null
+        // Approved whitelisted (personal) numbers are never uploaded.
+        if (whitelistRepository.approvedNumbers().contains(PhoneUtils.normalize(recent.phoneNumber))) {
+            return@withContext null
+        }
 
         val existing = callDao.findByNumberAndStart(recent.phoneNumber, recent.startTime)
         if (existing != null) {
@@ -126,6 +137,10 @@ class CallRepository @Inject constructor(
     suspend fun enqueueCaptured(captured: CapturedCall): String? = withContext(Dispatchers.IO) {
         val activatedAt = prefs.activatedAtEpochMs
         if (activatedAt <= 0L || captured.startTime <= activatedAt) return@withContext null
+        // Approved whitelisted (personal) numbers are never uploaded.
+        if (whitelistRepository.approvedNumbers().contains(PhoneUtils.normalize(captured.phoneNumber))) {
+            return@withContext null
+        }
 
         val clientCallId = UUID.randomUUID().toString()
         val hasRecording = recordingRepository.discoverForCall(
@@ -147,12 +162,21 @@ class CallRepository @Inject constructor(
             .distinctBy { it.clientCallId }
         if (pending.isEmpty()) return@withContext true
 
+        // Drop any queued calls whose number became APPROVED-whitelisted after it
+        // was captured — these must never be uploaded.
+        val approved = whitelistRepository.approvedNumbers()
+        val (toSkip, toSend) = pending.partition { approved.contains(PhoneUtils.normalize(it.phoneNumber)) }
+        if (toSkip.isNotEmpty()) {
+            callDao.deleteByClientIds(toSkip.map { it.clientCallId })
+        }
+        if (toSend.isEmpty()) return@withContext true
+
         var allOk = true
         var accepted = 0
         var rejected = 0
         var lastReason: String? = null
 
-        for (call in pending) {
+        for (call in toSend) {
             val now = System.currentTimeMillis()
             callDao.markState(listOf(call.clientCallId), CallEntity.SyncState.SYNCING, now)
 

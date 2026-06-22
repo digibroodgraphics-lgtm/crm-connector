@@ -34,7 +34,8 @@ class DeviceRepository @Inject constructor(
     private val moshi: Moshi,
     private val prefs: SecurePrefs,
     private val deviceInfo: DeviceInfoProvider,
-    private val connectivity: ConnectivityObserver
+    private val connectivity: ConnectivityObserver,
+    private val whitelistRepository: WhitelistRepository
 ) {
 
     fun currentStatus(): DeviceStatus = DeviceStatus.fromApi(prefs.deviceStatus)
@@ -77,6 +78,8 @@ class DeviceRepository @Inject constructor(
             if (!body.activatedAt.isNullOrBlank()) {
                 prefs.activatedAtEpochMs = TimeUtils.parseToEpochMillis(body.activatedAt)
             }
+            // Reflect the admin's whitelist decisions (D7) when present.
+            whitelistRepository.syncFromDeviceStatus(body.whitelist)
             ensureActivationTimestamp()
         }
         return result

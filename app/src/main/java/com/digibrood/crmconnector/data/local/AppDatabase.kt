@@ -5,9 +5,11 @@ import androidx.room.RoomDatabase
 import com.digibrood.crmconnector.data.local.dao.CallDao
 import com.digibrood.crmconnector.data.local.dao.RecordingDao
 import com.digibrood.crmconnector.data.local.dao.RemarkDao
+import com.digibrood.crmconnector.data.local.dao.WhitelistDao
 import com.digibrood.crmconnector.data.local.entity.CallEntity
 import com.digibrood.crmconnector.data.local.entity.RecordingEntity
 import com.digibrood.crmconnector.data.local.entity.RemarkEntity
+import com.digibrood.crmconnector.data.local.entity.WhitelistEntity
 
 /**
  * Room database that holds the offline sync queues for calls, recordings and
@@ -17,15 +19,17 @@ import com.digibrood.crmconnector.data.local.entity.RemarkEntity
     entities = [
         CallEntity::class,
         RecordingEntity::class,
-        RemarkEntity::class
+        RemarkEntity::class,
+        WhitelistEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun callDao(): CallDao
     abstract fun recordingDao(): RecordingDao
     abstract fun remarkDao(): RemarkDao
+    abstract fun whitelistDao(): WhitelistDao
 
     companion object {
         const val NAME = "crm_connector.db"
