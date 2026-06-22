@@ -4,12 +4,15 @@ import com.digibrood.crmconnector.data.prefs.SecurePrefs
 import com.digibrood.crmconnector.data.remote.NetworkResult
 import com.digibrood.crmconnector.data.remote.api.CrmApiService
 import com.digibrood.crmconnector.data.remote.dto.LoginRequest
+import com.digibrood.crmconnector.data.remote.dto.RefreshRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
+import com.digibrood.crmconnector.di.RefreshClient
 import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.util.TimeUtils
 import com.digibrood.crmconnector.util.UrlValidator
 import com.squareup.moshi.Moshi
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 /** Outcome of a login attempt, expressed in terms the UI can act on directly. */
@@ -31,6 +34,7 @@ sealed interface LoginResult {
 @Singleton
 class AuthRepository @Inject constructor(
     private val api: CrmApiService,
+    @RefreshClient private val refreshApi: Provider<CrmApiService>,
     private val moshi: Moshi,
     private val prefs: SecurePrefs
 ) {
@@ -56,6 +60,10 @@ class AuthRepository @Inject constructor(
                     )
                 } else {
                     prefs.saveTokens(body.accessToken, body.refreshToken, body.expiresIn)
+                    // Persist credentials (encrypted) so the app can silently
+                    // re-login if the refresh token is ever rejected.
+                    prefs.savedEmail = email.trim()
+                    prefs.savedPassword = password
                     body.deviceStatus?.let { prefs.deviceStatus = it }
                     body.registeredNumber?.let { prefs.registeredNumber = it }
                     if (!body.activatedAt.isNullOrBlank()) {
@@ -79,4 +87,26 @@ class AuthRepository @Inject constructor(
     }
 
     val isLoggedIn: Boolean get() = prefs.isLoggedIn
+
+    /**
+     * Proactively refreshes the access token shortly BEFORE it expires so there
+     * is never a visible interruption. Called periodically by the foreground
+     * service. No-op if there is no expiry recorded or it is not near expiry.
+     */
+    suspend fun proactiveRefreshIfNeeded() {
+        val refresh = prefs.refreshToken ?: return
+        val expiry = prefs.tokenExpiryEpochMs
+        if (expiry <= 0L) return
+        // Refresh when within 1 hour of the access token expiring.
+        if (System.currentTimeMillis() < expiry - 60 * 60 * 1000L) return
+        runCatching {
+            val res = refreshApi.get().refresh(RefreshRequest(refresh))
+            if (res.isSuccessful) {
+                val b = res.body()
+                if (!b?.accessToken.isNullOrBlank()) {
+                    prefs.saveTokens(b?.accessToken, b?.refreshToken, b?.expiresIn)
+                }
+            }
+        }
+    }
 }

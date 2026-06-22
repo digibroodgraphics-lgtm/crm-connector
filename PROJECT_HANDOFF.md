@@ -198,11 +198,27 @@ Key behaviors:
   popup save / CRM-side logic creates a contact).
 
 ### Session-logout codes (confirmed with CRM dev)
-- `401 TOKEN_EXPIRED` → TokenAuthenticator refreshes + retries once (never logs out).
+- `401 TOKEN_EXPIRED` / `401 INVALID_TOKEN` / `401 NO_TOKEN` → `TokenAuthenticator` recovery ladder:
+  (1) refresh the access token with the saved refresh_token and retry; (2) if refresh fails (e.g.
+  server redeploy rotated secrets), **silently re-login** with the encrypted stored credentials and
+  retry. Syncing never visibly stops on a token error.
 - `403 APP_LOGIN_DISABLED` (account disabled) and `403 DEVICE_REVOKED` (device revoked) →
-  the new `SessionGuardInterceptor` clears tokens and routes to Login. These are the ONLY
-  two logout conditions. OkHttp's Authenticator only fires on 401, hence the separate
-  interceptor for the 403 codes.
+  the `SessionGuardInterceptor` clears tokens and routes to Login. These are the ONLY two
+  logout conditions.
+- Credentials (email/password) are saved in EncryptedSharedPreferences on login solely to enable
+  the silent re-login. Access token (~7 days) is proactively refreshed ~1h before expiry by the
+  foreground service so there is no visible interruption; the refresh token is long-lived (~90 days).
+
+### Steady heartbeat
+- The foreground service pings `POST /heartbeat` every ~60s while the device is approved (WorkManager
+  can't go below 15 min, so the 60s cadence runs in the service). The CRM uses this heartbeat to
+  advance automations (e.g. WhatsApp). The same loop proactively refreshes the access token.
+
+### Realtime sync & Dismiss
+- Each call is captured and queued the moment it ends (CallReceiver), then an immediate full sync
+  runs — independent of the after-call popup. Tapping **Dismiss** skips the note, NOT the call: the
+  call is already queued and syncs regardless. A persistent Room queue with exponential backoff
+  retries over mobile data or wifi whether or not the CRM is open in a browser.
 
 ## 7. Open items / notes
 - Recording upload only happens if the phone actually saves call recordings to disk

@@ -52,6 +52,21 @@ class SecurePrefs @Inject constructor(
         get() = prefs.getString(KEY_REFRESH_TOKEN, null)
         set(value) = prefs.edit().putString(KEY_REFRESH_TOKEN, value).apply()
 
+    // ---- Saved credentials (for silent re-login when refresh fails) ----
+    // Stored encrypted at rest (Android Keystore). Used only to transparently
+    // re-authenticate so syncing never visibly stops on a token error.
+    var savedEmail: String?
+        get() = prefs.getString(KEY_EMAIL, null)
+        set(value) = prefs.edit().putString(KEY_EMAIL, value).apply()
+
+    var savedPassword: String?
+        get() = prefs.getString(KEY_PASSWORD, null)
+        set(value) = prefs.edit().putString(KEY_PASSWORD, value).apply()
+
+    /** True when stored credentials exist for a silent re-login. */
+    val hasSavedCredentials: Boolean
+        get() = !savedEmail.isNullOrBlank() && !savedPassword.isNullOrBlank()
+
     var tokenExpiryEpochMs: Long
         get() = prefs.getLong(KEY_TOKEN_EXPIRY, 0L)
         set(value) = prefs.edit().putLong(KEY_TOKEN_EXPIRY, value).apply()
@@ -140,6 +155,8 @@ class SecurePrefs @Inject constructor(
         private const val FILE_NAME = "crm_secure_prefs"
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
+        private const val KEY_EMAIL = "login_email"
+        private const val KEY_PASSWORD = "login_password"
         private const val KEY_TOKEN_EXPIRY = "token_expiry"
         private const val KEY_CRM_ORIGIN = "crm_origin"
         private const val KEY_REGISTERED_NUMBER = "registered_number"

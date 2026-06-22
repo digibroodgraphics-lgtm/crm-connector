@@ -9,6 +9,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.digibrood.crmconnector.data.repository.AuthRepository
 import com.digibrood.crmconnector.data.repository.DeviceRepository
 import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.sync.SyncController
@@ -16,6 +17,7 @@ import com.digibrood.crmconnector.util.ConnectivityObserver
 import com.digibrood.crmconnector.util.Constants
 import com.digibrood.crmconnector.worker.SyncScheduler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -37,6 +39,7 @@ class SyncForegroundService : LifecycleService() {
     @Inject lateinit var syncController: SyncController
     @Inject lateinit var connectivity: ConnectivityObserver
     @Inject lateinit var deviceRepository: DeviceRepository
+    @Inject lateinit var authRepository: AuthRepository
     @Inject lateinit var scheduler: SyncScheduler
 
     override fun onCreate() {
@@ -44,6 +47,7 @@ class SyncForegroundService : LifecycleService() {
         startAsForeground()
         observeConnectivity()
         runInitialSync()
+        startHeartbeatLoop()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -91,6 +95,30 @@ class SyncForegroundService : LifecycleService() {
         }
     }
 
+    /**
+     * Steady heartbeat: while the device is approved, ping the CRM every ~60s so
+     * the backend can advance its automations (e.g. WhatsApp) and pick up status
+     * changes promptly. Also proactively refreshes the access token before it
+     * expires so there is never a visible interruption.
+     */
+    private fun startHeartbeatLoop() {
+        lifecycleScope.launch {
+            while (true) {
+                try {
+                    if (deviceRepository.currentStatus() == DeviceStatus.APPROVED &&
+                        connectivity.isOnline()
+                    ) {
+                        authRepository.proactiveRefreshIfNeeded()
+                        syncController.runHeartbeat()
+                    }
+                } catch (_: Throwable) {
+                    // Never let a heartbeat error stop the loop.
+                }
+                delay(HEARTBEAT_INTERVAL_MS)
+            }
+        }
+    }
+
     private fun stopIfNotApproved() {
         if (deviceRepository.currentStatus() != DeviceStatus.APPROVED) {
             scheduler.cancelAll()
@@ -104,6 +132,8 @@ class SyncForegroundService : LifecycleService() {
     }
 
     companion object {
+        private const val HEARTBEAT_INTERVAL_MS = 60_000L
+
         fun start(context: Context) {
             val intent = Intent(context, SyncForegroundService::class.java)
             ContextCompat.startForegroundService(context, intent)
