@@ -224,6 +224,7 @@ private fun DiagnosticsCard(state: DashboardUiState) {
             DiagRow("Latest call on phone", state.diagLatestCall)
             DiagRow("Recording files found", state.recordingsFound.toString())
             DiagRow("Recordings pending", state.pendingRecordings.toString())
+            DiagRow("Last call recording", state.diagLastRecordingStatus)
             DiagRow("Last sync result", state.diagLastSyncResult)
             Spacer(Modifier.height(6.dp))
             Text(text = "Device ID", style = MaterialTheme.typography.bodyMedium)

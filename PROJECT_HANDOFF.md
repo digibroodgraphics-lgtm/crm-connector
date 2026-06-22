@@ -73,12 +73,17 @@ generic assumptions.**
 - **POST /calls/remark** `{device_id, client_call_id, phone, call_type, name, company, remark, status}`
   → `{ok, contact_id, name, company}`. Name/company applied "smartly" (only adopted if contact
   has none). Sending call_type lets the CRM create/label the log from the popup.
-- **POST /recordings/presign** `{device_id, client_call_id, file_name, mime_type, file_size}`
+- **POST /recordings/presign** `{device_id, client_call_id, phone, file_name, mime_type, file_size}`
   → `{ok, upload_url, method:"PUT", headers{Content-Type}, object_key, key, recording_id,
   content_type, expires_in, max_bytes:52428800}`. Allowed types: mp3, m4a, wav, amr, 3gp, ogg.
+  (`phone` is sent in presign AND confirm so the CRM can attach by number when ids differ.)
 - **POST /recordings/confirm** `{device_id, client_call_id, object_key (or key/recording_id),
   phone, file_size, success}` → `{ok, call_id, recording_id}`. Upload to R2 (PUT) must
   succeed (HTTP 200) BEFORE confirm; only confirm with success:true.
+- **GET /recordings/trace?client_call_id=...** → `{ok, call_synced, call:{has_recording,
+  recording_attached, ai_status, synced_at}, recording_held_pending, hint}`. The dashboard
+  diagnostics use this to show the last synced call's recording state
+  (Attached / Uploaded, attaching… / Call not synced yet / No recording file).
 - **GET /settings** → `{ok, call_popup_enabled, recording_path, recording_upload, auto_sync,
   heartbeat_interval_sec, ...}`.
 - **GET /meta** → `{ok, tags:[{id,name}], statuses:[{value,label}], stages:[{id,name}]}`.

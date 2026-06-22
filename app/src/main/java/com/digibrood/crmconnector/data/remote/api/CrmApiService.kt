@@ -71,6 +71,11 @@ interface CrmApiService {
     @POST("recordings/confirm")
     suspend fun confirmRecording(@Body body: ConfirmRequest): Response<ConfirmResponse>
 
+    @GET("recordings/trace")
+    suspend fun traceRecording(
+        @Query("client_call_id") clientCallId: String
+    ): Response<com.digibrood.crmconnector.data.remote.dto.RecordingTraceResponse>
+
     @GET("settings")
     suspend fun getSettings(): Response<SettingsResponse>
 

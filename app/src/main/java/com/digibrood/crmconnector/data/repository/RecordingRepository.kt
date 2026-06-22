@@ -54,6 +54,26 @@ class RecordingRepository @Inject constructor(
         runCatching { scanner.scan(extraScanPaths(), prefs.activatedAtEpochMs).size }.getOrDefault(0)
     }
 
+    /**
+     * Asks the CRM for the recording state of a specific call (diagnostics).
+     * Returns a short human-readable status, or null if the trace call fails.
+     */
+    suspend fun traceRecordingStatus(clientCallId: String): String? = withContext(Dispatchers.IO) {
+        when (val r = safeApiCall(moshi) { api.traceRecording(clientCallId) }) {
+            is NetworkResult.Success -> {
+                val d = r.data
+                when {
+                    d.call?.recordingAttached == true -> "Attached"
+                    d.recordingHeldPending -> "Uploaded, attaching…"
+                    !d.callSynced -> "Call not synced yet"
+                    d.call?.hasRecording == 0 -> "No recording file"
+                    else -> d.hint ?: "Pending"
+                }
+            }
+            else -> null
+        }
+    }
+
     private fun extraScanPaths(): List<String> {
         val override = prefs.recordingPathOverride
         return if (!override.isNullOrBlank()) listOf(override) else emptyList()
@@ -124,6 +144,7 @@ class RecordingRepository @Inject constructor(
                 PresignRequest(
                     deviceId = deviceInfo.deviceId,
                     clientCallId = rec.clientCallId,
+                    phone = rec.phoneNumber,
                     fileName = rec.fileName,
                     mimeType = rec.mimeType,
                     fileSize = file.length()
