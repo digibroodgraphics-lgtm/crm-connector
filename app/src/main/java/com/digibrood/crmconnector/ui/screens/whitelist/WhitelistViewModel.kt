@@ -43,7 +43,14 @@ class WhitelistViewModel @Inject constructor(
     val form: StateFlow<WhitelistFormState> = _form.asStateFlow()
 
     init {
-        refresh()
+        // Poll device/status while the screen is open so an admin approval shows
+        // up promptly (the CRM marks these responses no-store, so each poll is fresh).
+        viewModelScope.launch {
+            while (true) {
+                runCatching { deviceRepository.refreshStatus() }
+                kotlinx.coroutines.delay(10_000L)
+            }
+        }
     }
 
     fun onNumberChange(value: String) = _form.update { it.copy(number = value, message = null) }
@@ -68,6 +75,11 @@ class WhitelistViewModel @Inject constructor(
                 } else {
                     it.copy(submitting = false, message = message)
                 }
+            }
+            // Re-read status straight after proposing so an already-approved number
+            // (or a quick admin approval) reflects without waiting for the next poll.
+            if (result is ProposeResult.Added) {
+                runCatching { deviceRepository.refreshStatus() }
             }
         }
     }

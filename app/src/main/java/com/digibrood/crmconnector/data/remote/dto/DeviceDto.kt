@@ -39,7 +39,7 @@ data class DeviceStatusResponse(
     @Json(name = "activated_at") val activatedAt: String? = null,
     @Json(name = "call_popup_enabled") val callPopupEnabled: Boolean? = null,
     @Json(name = "revoked") val revoked: Boolean? = null,
-    @Json(name = "whitelist") val whitelist: List<String>? = null,
+    @Json(name = "whitelist") val whitelist: List<WhitelistItem>? = null,
     @Json(name = "message") val message: String? = null
 )
 

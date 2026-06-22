@@ -23,3 +23,16 @@ data class WhitelistProposeResponse(
     @Json(name = "status") val status: String? = null,
     @Json(name = "message") val message: String? = null
 )
+
+/**
+ * One entry in the `whitelist` array on GET /device/status (D7).
+ *
+ * The CRM contract for this array has changed between releases — it has been
+ * delivered both as plain E.164 strings (every entry implicitly approved) and as
+ * objects `{number, status}`. [WhitelistItemAdapter] parses BOTH shapes into this
+ * model so the app is resilient to either, treating a bare string as approved.
+ */
+data class WhitelistItem(
+    val number: String? = null,
+    val status: String? = null
+)

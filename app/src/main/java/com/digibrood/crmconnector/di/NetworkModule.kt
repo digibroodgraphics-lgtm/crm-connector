@@ -35,6 +35,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideMoshi(): Moshi = Moshi.Builder()
+        .add(com.digibrood.crmconnector.data.remote.dto.WhitelistItemAdapter())
         .add(KotlinJsonAdapterFactory())
         .build()
 

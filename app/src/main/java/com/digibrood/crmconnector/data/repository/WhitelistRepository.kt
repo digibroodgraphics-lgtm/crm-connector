@@ -4,6 +4,7 @@ import com.digibrood.crmconnector.data.local.dao.WhitelistDao
 import com.digibrood.crmconnector.data.local.entity.WhitelistEntity
 import com.digibrood.crmconnector.data.remote.NetworkResult
 import com.digibrood.crmconnector.data.remote.api.CrmApiService
+import com.digibrood.crmconnector.data.remote.dto.WhitelistItem
 import com.digibrood.crmconnector.data.remote.dto.WhitelistProposeRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
 import com.digibrood.crmconnector.util.DeviceInfoProvider
@@ -102,36 +103,41 @@ class WhitelistRepository @Inject constructor(
 
     /**
      * Applies the admin's decisions from the device/status `whitelist` array.
-     * The CRM sends only APPROVED numbers (E.164). Any local number NOT in the
-     * array is reverted to PENDING so its calls resume uploading (the admin
-     * removed/rejected it, or it's still awaiting approval).
+     * Handles both contract shapes (see [com.digibrood.crmconnector.data.remote.dto.WhitelistItem]):
+     * each item carries a number + status. Numbers reported APPROVED are excluded
+     * from upload; any locally-APPROVED number that is no longer approved in this
+     * payload is reverted to PENDING so its calls resume uploading.
      */
-    suspend fun syncFromDeviceStatus(approvedRaw: List<String>?) = withContext(Dispatchers.IO) {
-        if (approvedRaw == null) return@withContext
+    suspend fun syncFromDeviceStatus(items: List<WhitelistItem>?) = withContext(Dispatchers.IO) {
+        if (items == null) return@withContext
         val now = System.currentTimeMillis()
-        val approved = approvedRaw.map { PhoneUtils.normalize(it) }.filter { it.isNotBlank() }.toSet()
 
-        // Mark every approved number APPROVED, inserting any the admin added directly.
-        for (number in approved) {
+        val approvedSet = HashSet<String>()
+        for (item in items) {
+            val number = PhoneUtils.normalize(item.number)
+            if (number.isBlank()) continue
+            val status = mapStatus(item.status)
+            if (status == WhitelistEntity.Status.APPROVED) approvedSet.add(number)
+
             val existing = dao.getByNumber(number)
             if (existing == null) {
                 dao.insert(
                     WhitelistEntity(
                         number = number,
-                        status = WhitelistEntity.Status.APPROVED,
+                        status = status,
                         proposedToCrm = true,
                         createdAt = now,
                         updatedAt = now
                     )
                 )
-            } else if (existing.status != WhitelistEntity.Status.APPROVED) {
-                dao.markProposed(number, proposed = true, status = WhitelistEntity.Status.APPROVED, now = now)
+            } else if (existing.status != status) {
+                dao.markProposed(number, proposed = true, status = status, now = now)
             }
         }
 
-        // Any locally-APPROVED number no longer in the array → revert to PENDING.
+        // Any locally-APPROVED number not approved in this payload → resume uploads.
         dao.getAll()
-            .filter { it.status == WhitelistEntity.Status.APPROVED && !approved.contains(it.number) }
+            .filter { it.status == WhitelistEntity.Status.APPROVED && !approvedSet.contains(it.number) }
             .forEach { dao.updateStatus(it.number, WhitelistEntity.Status.PENDING, now) }
     }
 
