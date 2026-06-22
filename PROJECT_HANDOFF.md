@@ -88,12 +88,15 @@ generic assumptions.**
 - **GET /stats?device_id=...** → `{ok, connection_status, calls_today, uploads_today, last_sync}`.
 - **POST /whitelist/propose** `{device_id, number, note?}` → `{ok, id, status:"pending", message}`
   (D7, LIVE). status is `pending` (or `approved` if the admin had already added it).
-- **GET /device/status** also returns a **`whitelist`** array (D7). The app tolerates BOTH
-  shapes the CRM has used (a `WhitelistItemAdapter` parses either): bare E.164 strings
-  (each treated as approved) OR objects `{number, status}` (status approved|pending|rejected).
-  Approved numbers are excluded from upload; a number that is no longer approved resumes
-  uploading. The Whitelist screen re-polls device/status after a propose and every ~10s while
-  open (CRM responses are now `Cache-Control: no-store`, so each poll is fresh).
+- **GET /device/status** also returns a **`whitelist`** array (D7). **Canonical shape (final):**
+  an array of objects `[{ "number": "+91…", "status": "approved|pending|rejected" }]` where
+  `number` is normalised +E.164 and entries are per-device. The app excludes a number from
+  upload ONLY when `status == "approved"`; `pending`, `rejected`, and any unknown value keep
+  uploading (a number approved then removed by the admin returns as `rejected`). The earlier
+  plain-string form (`["+91…"]`) is DEPRECATED and no longer sent, but the app's
+  `WhitelistItemAdapter` still tolerates it (treating a bare string as approved) as a safety net.
+  The Whitelist screen re-polls device/status after a propose and every ~10s while open
+  (CRM responses are `Cache-Control: no-store`, so each poll is fresh).
   CRM safety net: if a whitelisted number slips through, `/calls/sync` returns
   `status:"whitelisted_skipped"` and stores nothing (app treats it as terminal, not an error).
 

@@ -6,12 +6,13 @@ import com.squareup.moshi.JsonWriter
 import com.squareup.moshi.ToJson
 
 /**
- * Tolerant Moshi adapter for [WhitelistItem] so the app survives the CRM's
- * `whitelist` array being delivered in either of the shapes it has used:
+ * Tolerant Moshi adapter for [WhitelistItem]. The CANONICAL CRM shape (final) is
+ * the object form `{"number":"+91…","status":"approved|pending|rejected"}`. An
+ * earlier deprecated form sent bare E.164 strings; this adapter still accepts it
+ * (treating a bare string as approved) purely as a safety net.
  *
- *  - A bare E.164 string: `"+919812345678"` — treated as an APPROVED entry
- *    (the string-array form only ever contained approved numbers).
- *  - An object: `{"number":"+91…","status":"approved|pending|rejected"}`.
+ *  - Bare E.164 string: `"+919812345678"` -> APPROVED entry.
+ *  - Object: `{"number":"+91…","status":"approved|pending|rejected"}`.
  *
  * Anything else is skipped safely.
  */
