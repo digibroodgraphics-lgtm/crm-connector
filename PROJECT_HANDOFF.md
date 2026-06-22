@@ -86,10 +86,13 @@ generic assumptions.**
   Cached; refreshed on launch / each sync cycle so new CRM tags appear automatically.
 - **GET /branding** → `{ok, app_name, logo_url, icon_url, use_crm_favicon}`.
 - **GET /stats?device_id=...** → `{ok, connection_status, calls_today, uploads_today, last_sync}`.
-- **POST /whitelist/propose** `{device_id, number, label?}` → `{ok, id, status:"pending", message}` (D7, LIVE).
-  Proposes a personal number for admin approval. Until approved its calls keep uploading.
-- **GET /device/status** now also returns a **`whitelist`** array (D7): `[{number, status}]`
-  (status pending|approved|rejected). The app excludes APPROVED numbers from upload.
+- **POST /whitelist/propose** `{device_id, number, note?}` → `{ok, id, status:"pending", message}`
+  (D7, LIVE). status is `pending` (or `approved` if the admin had already added it).
+- **GET /device/status** also returns a **`whitelist`** array of APPROVED numbers as plain
+  E.164 strings (e.g. `["+919812345678"]`). The app excludes any number in this array from
+  upload; a removed/rejected number drops out of the array, so the app resumes uploading it.
+  CRM safety net: if a whitelisted number slips through, `/calls/sync` returns
+  `status:"whitelisted_skipped"` and stores nothing (app treats it as terminal, not an error).
 
 **D3 extended /calls/sync payload (superset, all optional extras):** in addition to the
 core fields above, the app now also sends `number`, `direction`, `started_at`, `ended_at`
@@ -166,12 +169,13 @@ Key behaviors:
 - 🔶 **D6 — Capture VoIP (WhatsApp etc.):** payload supports a `platform` field; full VoIP
   detection (Accessibility/notification listener) is best-effort and NOT yet implemented —
   scheduled as a follow-up so it never blocks the core PSTN flow.
-- ⏳ **D7 — Whitelist propose/approve:** ✅ NOW IMPLEMENTED (app + CRM live). Whitelist screen
-  reachable from a Dashboard top-bar shield button + a labelled button. Users propose a number
-  (`POST /whitelist/propose`), see its status (Pending approval / Approved / Rejected) refreshed
-  from the `whitelist` array on `GET /device/status`. Local Room table `whitelist` (DB v5).
-  APPROVED numbers are excluded from capture AND sync (CallRepository gating); PENDING numbers
-  keep uploading. Unproposed entries are retried each sync cycle.
+- ⏳ **D7 — Whitelist propose/approve:** ✅ IMPLEMENTED & aligned to LIVE contract. Whitelist
+  screen reachable from a Dashboard top-bar shield button + a labelled button. Users propose a
+  number (`POST /whitelist/propose` with `{device_id, number, note}`), see its status (Pending /
+  Approved / Rejected). The app reads the `whitelist` STRING array of approved E.164 numbers from
+  `GET /device/status`: numbers present = APPROVED (excluded from upload); numbers that drop out
+  revert to PENDING (uploads resume). Local Room table `whitelist` (DB v5). APPROVED numbers are
+  excluded from capture AND sync. `/calls/sync` `whitelisted_skipped` is handled as terminal.
 - ✅ **Cross-cutting:** unknown numbers are logged but NOT auto-created as contacts (only the
   popup save / CRM-side logic creates a contact).
 

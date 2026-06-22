@@ -4,7 +4,6 @@ import com.digibrood.crmconnector.data.local.dao.WhitelistDao
 import com.digibrood.crmconnector.data.local.entity.WhitelistEntity
 import com.digibrood.crmconnector.data.remote.NetworkResult
 import com.digibrood.crmconnector.data.remote.api.CrmApiService
-import com.digibrood.crmconnector.data.remote.dto.WhitelistItem
 import com.digibrood.crmconnector.data.remote.dto.WhitelistProposeRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
 import com.digibrood.crmconnector.util.DeviceInfoProvider
@@ -87,30 +86,53 @@ class WhitelistRepository @Inject constructor(
         dao.getUnproposed().forEach { entry -> sendPropose(entry.number, entry.label) }
     }
 
-    /** Applies the admin's decisions from the device/status `whitelist` array. */
-    suspend fun syncFromDeviceStatus(items: List<WhitelistItem>?) = withContext(Dispatchers.IO) {
-        if (items == null) return@withContext
+    /**
+     * If /calls/sync reports a number as whitelisted_skipped, reflect that locally
+     * (update-only) so the UI/gate stay consistent without waiting for the next
+     * device/status poll. Does NOT create surprise entries the user never added.
+     */
+    suspend fun markApprovedFromSkip(rawNumber: String?) = withContext(Dispatchers.IO) {
+        val number = PhoneUtils.normalize(rawNumber)
+        if (number.isBlank()) return@withContext
+        val existing = dao.getByNumber(number) ?: return@withContext
+        if (existing.status != WhitelistEntity.Status.APPROVED) {
+            dao.updateStatus(number, WhitelistEntity.Status.APPROVED, System.currentTimeMillis())
+        }
+    }
+
+    /**
+     * Applies the admin's decisions from the device/status `whitelist` array.
+     * The CRM sends only APPROVED numbers (E.164). Any local number NOT in the
+     * array is reverted to PENDING so its calls resume uploading (the admin
+     * removed/rejected it, or it's still awaiting approval).
+     */
+    suspend fun syncFromDeviceStatus(approvedRaw: List<String>?) = withContext(Dispatchers.IO) {
+        if (approvedRaw == null) return@withContext
         val now = System.currentTimeMillis()
-        for (item in items) {
-            val number = PhoneUtils.normalize(item.number)
-            if (number.isBlank()) continue
-            val status = mapStatus(item.status)
+        val approved = approvedRaw.map { PhoneUtils.normalize(it) }.filter { it.isNotBlank() }.toSet()
+
+        // Mark every approved number APPROVED, inserting any the admin added directly.
+        for (number in approved) {
             val existing = dao.getByNumber(number)
             if (existing == null) {
-                // Admin added it directly in the CRM — reflect it locally.
                 dao.insert(
                     WhitelistEntity(
                         number = number,
-                        status = status,
+                        status = WhitelistEntity.Status.APPROVED,
                         proposedToCrm = true,
                         createdAt = now,
                         updatedAt = now
                     )
                 )
-            } else {
-                dao.markProposed(number, proposed = true, status = status, now = now)
+            } else if (existing.status != WhitelistEntity.Status.APPROVED) {
+                dao.markProposed(number, proposed = true, status = WhitelistEntity.Status.APPROVED, now = now)
             }
         }
+
+        // Any locally-APPROVED number no longer in the array → revert to PENDING.
+        dao.getAll()
+            .filter { it.status == WhitelistEntity.Status.APPROVED && !approved.contains(it.number) }
+            .forEach { dao.updateStatus(it.number, WhitelistEntity.Status.PENDING, now) }
     }
 
     private suspend fun sendPropose(number: String, label: String?) {
@@ -119,7 +141,7 @@ class WhitelistRepository @Inject constructor(
                 WhitelistProposeRequest(
                     deviceId = deviceInfo.deviceId,
                     number = number,
-                    label = label
+                    note = label
                 )
             )
         }
@@ -127,8 +149,8 @@ class WhitelistRepository @Inject constructor(
             val status = mapStatus(result.data.status)
             dao.markProposed(number, proposed = true, status = status, now = System.currentTimeMillis())
         }
-        // On failure (e.g. endpoint not live yet) keep proposedToCrm=false so the
-        // next sync retries; the number stays PENDING and its calls keep uploading.
+        // On failure (e.g. transient network) keep proposedToCrm=false so the next
+        // sync retries; the number stays PENDING and its calls keep uploading.
     }
 
     private fun mapStatus(raw: String?): String = when (raw?.lowercase()) {

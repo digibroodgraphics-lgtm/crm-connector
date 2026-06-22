@@ -174,6 +174,7 @@ class CallRepository @Inject constructor(
         var allOk = true
         var accepted = 0
         var rejected = 0
+        var skipped = 0
         var lastReason: String? = null
 
         for (call in toSend) {
@@ -185,14 +186,22 @@ class CallRepository @Inject constructor(
                     val r = result.data.results.firstOrNull()
                     val status = r?.status
                     val isRejected = status.equals("rejected", true) || status.equals("error", true)
+                    // CRM safety net: a whitelisted number is intentionally not stored.
+                    val isWhitelisted = status.equals("whitelisted_skipped", true)
                     // Either way it's terminal — mark synced so it leaves the queue.
                     callDao.markSynced(call.clientCallId, r?.callId)
                     prefs.lastSyncEpochMs = now
-                    if (isRejected) {
-                        rejected++
-                        lastReason = r?.reason ?: status
-                    } else {
-                        accepted++
+                    when {
+                        isWhitelisted -> {
+                            skipped++
+                            // Keep the local whitelist in sync if the CRM skipped it.
+                            runCatching { whitelistRepository.markApprovedFromSkip(call.phoneNumber) }
+                        }
+                        isRejected -> {
+                            rejected++
+                            lastReason = r?.reason ?: status
+                        }
+                        else -> accepted++
                     }
                 }
 
@@ -213,12 +222,12 @@ class CallRepository @Inject constructor(
             }
         }
 
-        if (accepted > 0 || rejected > 0) {
-            prefs.lastSyncResult = if (rejected == 0) {
-                "OK: $accepted call(s) accepted"
-            } else {
-                "OK: $accepted accepted, $rejected rejected (${lastReason ?: "unknown"})"
+        if (accepted > 0 || rejected > 0 || skipped > 0) {
+            val base = when {
+                rejected == 0 -> "OK: $accepted call(s) accepted"
+                else -> "OK: $accepted accepted, $rejected rejected (${lastReason ?: "unknown"})"
             }
+            prefs.lastSyncResult = if (skipped > 0) "$base, $skipped whitelisted" else base
         }
         allOk
     }
