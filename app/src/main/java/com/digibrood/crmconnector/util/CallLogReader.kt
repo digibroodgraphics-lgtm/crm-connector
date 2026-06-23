@@ -63,6 +63,44 @@ class CallLogReader @Inject constructor(
         ).firstOrNull()
     }
 
+    /**
+     * Returns the caller-ID name the system cached for the most recent call to/from
+     * [phoneNumber], if any. This is how a caller-ID app such as **Truecaller**
+     * surfaces an unknown caller's name: when it identifies a call, the resolved
+     * name is written to the call log's CACHED_NAME column. Best-effort — depends
+     * on the caller-ID app's integration and the OEM dialer.
+     */
+    fun cachedNameFor(phoneNumber: String?): String? {
+        if (phoneNumber.isNullOrBlank() || !hasPermission()) return null
+        val target = PhoneUtils.normalize(phoneNumber)
+        try {
+            context.contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                arrayOf(CallLog.Calls.CACHED_NAME, CallLog.Calls.NUMBER),
+                null,
+                null,
+                "${CallLog.Calls.DATE} DESC"
+            )?.use { cursor ->
+                val nameIdx = cursor.getColumnIndex(CallLog.Calls.CACHED_NAME)
+                val numIdx = cursor.getColumnIndex(CallLog.Calls.NUMBER)
+                if (nameIdx >= 0 && numIdx >= 0) {
+                    var scanned = 0
+                    while (cursor.moveToNext() && scanned < 300) {
+                        scanned++
+                        val num = cursor.getString(numIdx) ?: continue
+                        if (PhoneUtils.normalize(num) == target) {
+                            val name = cursor.getString(nameIdx)
+                            if (!name.isNullOrBlank()) return name
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Provider quirk / revoked permission — fall through to null.
+        }
+        return null
+    }
+
     private fun query(
         selection: String?,
         selectionArgs: Array<String>?,

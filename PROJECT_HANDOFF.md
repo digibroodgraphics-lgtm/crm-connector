@@ -160,6 +160,13 @@ Key behaviors:
   file uploads promptly instead of waiting for the next periodic cycle. The CRM links a recording
   to its call by client_call_id/phone even if the recording is confirmed before/after the call sync.
 - Missed/rejected calls: logged, but NO popup.
+- After-call popup name pre-fill (unknown numbers): CRM lookup → device contacts →
+  caller-ID name cached in the call log (CACHED_NAME) by apps like **Truecaller**. The name is
+  editable and only saved to the CRM when the user taps Save. Best-effort: the Truecaller name
+  depends on Truecaller writing CACHED_NAME on that device/dialer.
+- VoIP/WhatsApp calls: NOT captured yet (D6). Only PSTN calls (system call log) are captured.
+  Capturing WhatsApp/Messenger/etc. would need a NotificationListenerService (Notification Access)
+  and a CRM decision on representing numberless VoIP calls — scheduled as a follow-up.
 - Dashboard: status, connection, registered number, calls synced today, last synced
   number, recordings uploaded today, pending queue, last sync. Diagnostics behind a toggle.
 

@@ -7,6 +7,7 @@ import com.digibrood.crmconnector.data.remote.api.CrmApiService
 import com.digibrood.crmconnector.data.remote.dto.ContactLookupResponse
 import com.digibrood.crmconnector.data.remote.dto.RemarkRequest
 import com.digibrood.crmconnector.data.remote.safeApiCall
+import com.digibrood.crmconnector.util.CallLogReader
 import com.digibrood.crmconnector.util.ContactReader
 import com.digibrood.crmconnector.util.DeviceInfoProvider
 import com.digibrood.crmconnector.util.PhoneUtils
@@ -34,22 +35,34 @@ class ContactRepository @Inject constructor(
     private val moshi: Moshi,
     private val remarkDao: RemarkDao,
     private val deviceInfo: DeviceInfoProvider,
-    private val contactReader: ContactReader
+    private val contactReader: ContactReader,
+    private val callLogReader: CallLogReader
 ) {
 
     /**
+     * Best-effort name for an unknown number from the DEVICE: first the user's
+     * saved contacts, then the caller-ID name a app such as Truecaller cached in
+     * the call log for the most recent call. Returns null if nothing is found.
+     */
+    private fun deviceName(normalized: String): String? =
+        contactReader.displayNameFor(normalized)?.takeIf { it.isNotBlank() }
+            ?: callLogReader.cachedNameFor(normalized)?.takeIf { it.isNotBlank() }
+
+    /**
      * Looks up a phone number against the CRM, returning the contact's name and
-     * company for pre-filling the popup. Falls back to the device's local contact
-     * name when the CRM is unreachable or errors, so the popup is always useful.
+     * company for pre-filling the popup. When the CRM has no name (unknown number),
+     * falls back to the device's contact name and then the caller-ID (Truecaller)
+     * cached name, so the popup is pre-filled and the user can just edit/save.
      */
     suspend fun lookup(phoneNumber: String): ContactDetails = withContext(Dispatchers.IO) {
         val normalized = PhoneUtils.normalize(phoneNumber)
         when (val result = safeApiCall(moshi) { api.lookupContact(normalized) }) {
             is NetworkResult.Success -> {
                 val body: ContactLookupResponse = result.data
-                val name = body.effectiveName ?: contactReader.displayNameFor(normalized)
+                val crmName = body.effectiveName
+                val name = crmName ?: deviceName(normalized)
                 ContactDetails(
-                    found = body.found || !body.effectiveName.isNullOrBlank(),
+                    found = body.found || !crmName.isNullOrBlank(),
                     name = name,
                     company = body.effectiveCompany,
                     status = body.effectiveStatus
@@ -57,7 +70,7 @@ class ContactRepository @Inject constructor(
             }
             else -> ContactDetails(
                 found = false,
-                name = contactReader.displayNameFor(normalized),
+                name = deviceName(normalized),
                 company = null,
                 status = null
             )
