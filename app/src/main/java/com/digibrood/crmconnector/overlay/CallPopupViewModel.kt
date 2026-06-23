@@ -67,21 +67,35 @@ class CallPopupViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
+            // Pre-fill the device/contact (or Truecaller) name immediately and show
+            // the form right away so the Name field is populated even before — or if
+            // — the CRM lookup is slow/unavailable.
+            if (normalized.isNotBlank()) {
+                val dn = runCatching { contactRepository.deviceName(normalized) }.getOrNull()
+                _state.update {
+                    it.copy(
+                        loadingContact = false,
+                        contactName = if (it.contactName.isBlank() && dn != null) dn else it.contactName
+                    )
+                }
+            } else {
+                _state.update { it.copy(loadingContact = false) }
+            }
+
             // Refresh meta in the background so newly-added CRM tags/statuses appear.
             runCatching { metaRepository.refresh() }
             _state.update {
                 it.copy(statusOptions = metaRepository.statuses, tagOptions = metaRepository.tags)
             }
 
+            // CRM lookup refines name/company/status when available.
             val details = if (normalized.isBlank()) null else contactRepository.lookup(normalized)
             _state.update {
                 it.copy(
-                    loadingContact = false,
-                    contactFound = details?.found ?: false,
-                    contactName = details?.name ?: it.contactName,
+                    contactFound = details?.found ?: it.contactFound,
+                    contactName = details?.name?.takeIf { n -> n.isNotBlank() } ?: it.contactName,
                     company = details?.company ?: it.company,
                     crmStatus = details?.status,
-                    // Pre-select the contact's existing CRM status when known.
                     selectedStatus = it.selectedStatus ?: details?.status
                 )
             }

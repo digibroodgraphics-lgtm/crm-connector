@@ -48,6 +48,10 @@ class CallRepository @Inject constructor(
 
     fun pendingCountFlow(): Flow<Int> = callDao.pendingCount()
 
+    private companion object {
+        const val DEDUP_WINDOW_MS = 120_000L
+    }
+
     suspend fun syncedTodayCount(): Int = callDao.syncedSince(TimeUtils.startOfTodayMillis())
 
     suspend fun lastSyncedCall(): CallEntity? = withContext(Dispatchers.IO) { callDao.lastSyncedCall() }
@@ -75,8 +79,15 @@ class CallRepository @Inject constructor(
 
         var inserted = 0
         for (captured in newCalls) {
-            // Skip calls already captured (e.g. by the real-time receiver path).
-            if (callDao.findByNumberAndStart(captured.phoneNumber, captured.startTime) != null) continue
+            // Skip calls already captured (e.g. by the real-time receiver path),
+            // matching within a ~2 min window since broadcast vs call-log start
+            // times differ slightly.
+            val dup = callDao.findByNumberNear(
+                captured.phoneNumber,
+                captured.startTime - DEDUP_WINDOW_MS,
+                captured.startTime + DEDUP_WINDOW_MS
+            )
+            if (dup != null) continue
             val clientCallId = UUID.randomUUID().toString()
             val hasRecording = recordingRepository.discoverForCall(
                 clientCallId = clientCallId,
@@ -137,10 +148,20 @@ class CallRepository @Inject constructor(
     suspend fun enqueueCaptured(captured: CapturedCall): String? = withContext(Dispatchers.IO) {
         val activatedAt = prefs.activatedAtEpochMs
         if (activatedAt <= 0L || captured.startTime <= activatedAt) return@withContext null
+        // PSTN calls need a number (VoIP uses a different path).
+        if (captured.phoneNumber.isBlank()) return@withContext null
         // Approved whitelisted (personal) numbers are never uploaded.
         if (whitelistRepository.approvedNumbers().contains(PhoneUtils.normalize(captured.phoneNumber))) {
             return@withContext null
         }
+        // De-dup against an existing capture of the same number within ~2 minutes
+        // (the broadcast capture and the call-log safety-net scan may both fire).
+        val window = DEDUP_WINDOW_MS
+        callDao.findByNumberNear(
+            captured.phoneNumber,
+            captured.startTime - window,
+            captured.startTime + window
+        )?.let { return@withContext it.clientCallId }
 
         val clientCallId = UUID.randomUUID().toString()
         val hasRecording = recordingRepository.discoverForCall(

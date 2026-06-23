@@ -164,10 +164,15 @@ Key behaviors:
   file uploads promptly instead of waiting for the next periodic cycle. The CRM links a recording
   to its call by client_call_id/phone even if the recording is confirmed before/after the call sync.
 - Missed/rejected calls: logged, but NO popup.
-- After-call popup name pre-fill (unknown numbers): CRM lookup → device contacts →
-  caller-ID name cached in the call log (CACHED_NAME) by apps like **Truecaller**. The name is
-  editable and only saved to the CRM when the user taps Save. Best-effort: the Truecaller name
-  depends on Truecaller writing CACHED_NAME on that device/dialer.
+- Call capture: **real-time from the phone-state broadcast** (CallReceiver builds the record from
+  the number + ring/offhook/idle timing — independent of the system call log, because some OEM
+  dialers (Samsung) expose a stale/incomplete call log to apps). Captures incoming-answered
+  (incoming), incoming-not-answered/rejected (missed, no popup), and outgoing answered-or-not
+  (outgoing). The call is queued BEFORE the popup shows, so dismissing the popup never drops it.
+  A WorkManager call-log scan remains as a safety net; both paths de-dupe by number within ~2 min.
+- After-call popup name pre-fill (unknown numbers): shows instantly from device contacts /
+  caller-ID (Truecaller) cached name, then the CRM lookup refines it. A blank CRM name falls
+  through to the device name. Editable; only saved to the CRM on Save.
 - VoIP/WhatsApp calls: **now captured (best-effort, D6)** via `VoipCallListenerService`
   (NotificationListenerService). It watches CALL-style notifications from a curated package list
   (Constants.VOIP_PACKAGES: WhatsApp, Telegram, Signal, Messenger, Instagram, Skype, Viber, Meet,

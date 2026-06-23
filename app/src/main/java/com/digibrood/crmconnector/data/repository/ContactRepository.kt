@@ -44,9 +44,14 @@ class ContactRepository @Inject constructor(
      * saved contacts, then the caller-ID name a app such as Truecaller cached in
      * the call log for the most recent call. Returns null if nothing is found.
      */
-    private fun deviceName(normalized: String): String? =
+    private fun deviceNameInternal(normalized: String): String? =
         contactReader.displayNameFor(normalized)?.takeIf { it.isNotBlank() }
             ?: callLogReader.cachedNameFor(normalized)?.takeIf { it.isNotBlank() }
+
+    /** Public, offline device-name resolver for instant popup pre-fill. */
+    suspend fun deviceName(phoneNumber: String): String? = withContext(Dispatchers.IO) {
+        deviceNameInternal(PhoneUtils.normalize(phoneNumber))
+    }
 
     /**
      * Looks up a phone number against the CRM, returning the contact's name and
@@ -59,10 +64,12 @@ class ContactRepository @Inject constructor(
         when (val result = safeApiCall(moshi) { api.lookupContact(normalized) }) {
             is NetworkResult.Success -> {
                 val body: ContactLookupResponse = result.data
-                val crmName = body.effectiveName
-                val name = crmName ?: deviceName(normalized)
+                // Treat a blank CRM name as "no name" so we still fall back to the
+                // device contact / caller-ID name.
+                val crmName = body.effectiveName?.takeIf { it.isNotBlank() }
+                val name = crmName ?: deviceNameInternal(normalized)
                 ContactDetails(
-                    found = body.found || !crmName.isNullOrBlank(),
+                    found = body.found || crmName != null,
                     name = name,
                     company = body.effectiveCompany,
                     status = body.effectiveStatus
@@ -70,7 +77,7 @@ class ContactRepository @Inject constructor(
             }
             else -> ContactDetails(
                 found = false,
-                name = deviceName(normalized),
+                name = deviceNameInternal(normalized),
                 company = null,
                 status = null
             )

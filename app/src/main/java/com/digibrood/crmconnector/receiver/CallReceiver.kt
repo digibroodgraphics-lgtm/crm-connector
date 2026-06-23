@@ -6,9 +6,10 @@ import android.content.Intent
 import android.telephony.TelephonyManager
 import com.digibrood.crmconnector.data.prefs.SecurePrefs
 import com.digibrood.crmconnector.data.repository.CallRepository
-import com.digibrood.crmconnector.data.repository.CapturedCallRef
+import com.digibrood.crmconnector.domain.model.CallType
 import com.digibrood.crmconnector.domain.model.DeviceStatus
 import com.digibrood.crmconnector.overlay.CallPopupActivity
+import com.digibrood.crmconnector.util.CapturedCall
 import com.digibrood.crmconnector.util.PermissionManager
 import com.digibrood.crmconnector.util.PhoneUtils
 import com.digibrood.crmconnector.worker.SyncScheduler
@@ -16,17 +17,24 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Detects call start/end transitions. When a call ends and the device is
- * approved, it captures the just-ended call (generating ONE stable
- * client_call_id shared by sync, recording upload and the remark popup),
- * triggers sync, and — for connected calls only — shows the after-call popup.
+ * Detects call start/end transitions from the phone-state broadcast and captures
+ * the just-ended call DIRECTLY from the broadcast data (number + timing), then
+ * queues it for upload and — for connected calls — shows the after-call popup.
  *
- * Missed/rejected calls are still captured and logged, but never show a popup.
+ * Capturing from the broadcast (rather than reading the system call log) is
+ * deliberate: some OEM dialers (e.g. Samsung) expose a stale/incomplete call log
+ * to apps, which previously caused recent calls to never be captured. Building
+ * the record from the broadcast makes capture reliable and independent of the
+ * call-log provider. Every call type is captured:
+ *   - incoming answered  -> incoming
+ *   - incoming not answered / rejected -> missed (no popup)
+ *   - outgoing (answered or not) -> outgoing
+ * so missed calls and unanswered outgoing calls still reach the CRM. Dismissing
+ * the popup never drops the call — it's already queued before the popup shows.
  */
 @AndroidEntryPoint
 class CallReceiver : BroadcastReceiver() {
@@ -43,7 +51,7 @@ class CallReceiver : BroadcastReceiver() {
             Intent.ACTION_NEW_OUTGOING_CALL -> {
                 @Suppress("DEPRECATION")
                 intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER)?.let {
-                    lastNumber = PhoneUtils.normalize(it)
+                    if (it.isNotBlank()) lastNumber = PhoneUtils.normalize(it)
                 }
             }
 
@@ -62,12 +70,15 @@ class CallReceiver : BroadcastReceiver() {
         when (state) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 if (!wasInCall) callStartAt = System.currentTimeMillis()
+                sawRinging = true
                 wasInCall = true
                 lastState = state
             }
 
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                if (!wasInCall) callStartAt = System.currentTimeMillis()
+                val now = System.currentTimeMillis()
+                if (!wasInCall) callStartAt = now
+                if (offHookAt == 0L) offHookAt = now
                 wasInCall = true
                 wentOffHook = true
                 lastState = state
@@ -75,50 +86,75 @@ class CallReceiver : BroadcastReceiver() {
 
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 if (wasInCall && lastState != TelephonyManager.EXTRA_STATE_IDLE) {
-                    onCallEnded(context, connected = wentOffHook, startedAt = callStartAt)
+                    onCallEnded(
+                        context = context,
+                        sawRinging = sawRinging,
+                        connected = wentOffHook,
+                        startedAt = callStartAt,
+                        offHookAt = offHookAt,
+                        endedAt = System.currentTimeMillis()
+                    )
                 }
+                // Reset the state machine for the next call.
                 wasInCall = false
                 wentOffHook = false
+                sawRinging = false
+                offHookAt = 0L
                 lastState = TelephonyManager.EXTRA_STATE_IDLE
             }
         }
     }
 
-    private fun onCallEnded(context: Context, connected: Boolean, startedAt: Long) {
+    private fun onCallEnded(
+        context: Context,
+        sawRinging: Boolean,
+        connected: Boolean,
+        startedAt: Long,
+        offHookAt: Long,
+        endedAt: Long
+    ) {
         val status = DeviceStatus.fromApi(prefs.deviceStatus)
-        if (status != DeviceStatus.APPROVED || prefs.activatedAtEpochMs <= 0L) return
+        if (status != DeviceStatus.APPROVED || prefs.activatedAtEpochMs <= 0L) {
+            lastNumber = null
+            return
+        }
 
-        val number = lastNumber
+        val number = lastNumber ?: ""
+        // Direction/outcome from the broadcast state machine.
+        val callType = when {
+            sawRinging && connected -> CallType.INCOMING
+            sawRinging && !connected -> CallType.MISSED
+            else -> CallType.OUTGOING
+        }
+        // Talk window for connected calls (exclude ring time); 0 for missed.
+        val talkStart = if (connected && offHookAt > 0L) offHookAt else startedAt
+        val duration = if (connected) ((endedAt - talkStart).coerceAtLeast(0L)) / 1000L else 0L
+        val captured = CapturedCall(
+            phoneNumber = PhoneUtils.normalize(number),
+            startTime = if (connected) talkStart else startedAt,
+            endTime = endedAt,
+            durationSeconds = duration,
+            callType = callType
+        )
+
         val pending = goAsync()
         scope.launch {
             try {
-                // The call log entry may take a moment to appear; retry briefly to
-                // capture the just-ended call and obtain its stable client_call_id.
-                var ref: CapturedCallRef? = null
-                var attempts = 0
-                while (ref == null && attempts < 6) {
-                    ref = runCatching { callRepository.captureRecentCall(startedAt) }.getOrNull()
-                    if (ref == null) {
-                        delay(800)
-                        attempts++
-                    }
-                }
+                // Queue the call NOW from broadcast data (independent of the call log).
+                val clientCallId = runCatching { callRepository.enqueueCaptured(captured) }.getOrNull()
 
-                // Push the queue (uploads the call and any recording).
+                // Push the queue and recordings (recording files arrive a bit later).
                 scheduler.requestImmediateSync()
                 scheduler.requestRecordingUpload()
-                // Recording files are written a few seconds after the call ends —
-                // re-run the upload shortly after so they're picked up promptly.
                 scheduler.scheduleDelayedRecordingUpload()
 
-                // Connected calls show the popup with the SAME id + call_type so the
-                // remark links to the call and recording. Missed/rejected: no popup.
-                if (connected && prefs.callPopupEnabled && permissionManager.canDrawOverlays()) {
-                    if (ref != null) {
-                        CallPopupActivity.launch(context, ref.phone, ref.clientCallId, ref.callType)
-                    } else {
-                        CallPopupActivity.launch(context, number, null, null)
-                    }
+                // Connected calls show the popup with the SAME id + call_type so a
+                // remark links to the call/recording. Missed/rejected: no popup, but
+                // the call is already queued above.
+                if (connected && number.isNotBlank() &&
+                    prefs.callPopupEnabled && permissionManager.canDrawOverlays()
+                ) {
+                    CallPopupActivity.launch(context, number, clientCallId, callType.apiValue)
                 }
             } finally {
                 lastNumber = null
@@ -131,7 +167,9 @@ class CallReceiver : BroadcastReceiver() {
         @Volatile private var lastState: String? = null
         @Volatile private var wasInCall: Boolean = false
         @Volatile private var wentOffHook: Boolean = false
+        @Volatile private var sawRinging: Boolean = false
         @Volatile private var lastNumber: String? = null
         @Volatile private var callStartAt: Long = 0L
+        @Volatile private var offHookAt: Long = 0L
     }
 }

@@ -25,6 +25,9 @@ interface CallDao {
     @Query("SELECT * FROM calls WHERE phoneNumber = :num AND startTime = :start LIMIT 1")
     suspend fun findByNumberAndStart(num: String, start: Long): CallEntity?
 
+    @Query("SELECT * FROM calls WHERE phoneNumber = :num AND startTime BETWEEN :minStart AND :maxStart ORDER BY startTime DESC LIMIT 1")
+    suspend fun findByNumberNear(num: String, minStart: Long, maxStart: Long): CallEntity?
+
     @Query("SELECT EXISTS(SELECT 1 FROM calls WHERE clientCallId = :clientCallId)")
     suspend fun exists(clientCallId: String): Boolean
 
