@@ -289,7 +289,9 @@ class CallRepository @Inject constructor(
                 is NetworkResult.Success -> {
                     val r = result.data.results.firstOrNull()
                     val status = r?.status
-                    val isRejected = status.equals("rejected", true) || status.equals("error", true)
+                    // Any "rejected*" status (incl. rejected_pre_activation) is terminal.
+                    val isRejected = status?.startsWith("rejected", ignoreCase = true) == true ||
+                        status.equals("error", true)
                     // CRM safety net: a whitelisted number is intentionally not stored.
                     val isWhitelisted = status.equals("whitelisted_skipped", true)
                     // Either way it's terminal — mark synced so it leaves the queue.
