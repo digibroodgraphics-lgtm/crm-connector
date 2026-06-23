@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -26,6 +27,13 @@ class PermissionManager @Inject constructor(
 
     /** "Display over other apps" special permission, required for the call popup. */
     fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(context)
+
+    /**
+     * OPTIONAL "Notification access" — enables best-effort VoIP/app call logging
+     * (WhatsApp etc.). Not required for the core PSTN flow.
+     */
+    fun isNotificationAccessGranted(): Boolean =
+        NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
 
     /** Notifications are only a runtime permission on Android 13+. */
     fun areNotificationsAllowed(): Boolean =

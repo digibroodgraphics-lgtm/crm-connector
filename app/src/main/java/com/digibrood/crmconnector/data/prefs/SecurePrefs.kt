@@ -67,6 +67,15 @@ class SecurePrefs @Inject constructor(
     val hasSavedCredentials: Boolean
         get() = !savedEmail.isNullOrBlank() && !savedPassword.isNullOrBlank()
 
+    /** Cached CRM meta so the popup always has dropdowns (even offline / first launch). */
+    var cachedTagsJson: String?
+        get() = prefs.getString(KEY_META_TAGS, null)
+        set(value) = prefs.edit().putString(KEY_META_TAGS, value).apply()
+
+    var cachedStatusesJson: String?
+        get() = prefs.getString(KEY_META_STATUSES, null)
+        set(value) = prefs.edit().putString(KEY_META_STATUSES, value).apply()
+
     var tokenExpiryEpochMs: Long
         get() = prefs.getLong(KEY_TOKEN_EXPIRY, 0L)
         set(value) = prefs.edit().putLong(KEY_TOKEN_EXPIRY, value).apply()
@@ -157,6 +166,8 @@ class SecurePrefs @Inject constructor(
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_EMAIL = "login_email"
         private const val KEY_PASSWORD = "login_password"
+        private const val KEY_META_TAGS = "meta_tags_json"
+        private const val KEY_META_STATUSES = "meta_statuses_json"
         private const val KEY_TOKEN_EXPIRY = "token_expiry"
         private const val KEY_CRM_ORIGIN = "crm_origin"
         private const val KEY_REGISTERED_NUMBER = "registered_number"

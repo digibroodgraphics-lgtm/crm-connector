@@ -18,7 +18,9 @@ data class PermissionItem(
     val titleRes: Int,
     val descRes: Int,
     val granted: Boolean,
-    val isOverlay: Boolean = false
+    val isOverlay: Boolean = false,
+    val isNotificationAccess: Boolean = false,
+    val optional: Boolean = false
 )
 
 data class PermissionsUiState(
@@ -100,6 +102,16 @@ class PermissionsViewModel @Inject constructor(
                     descRes = R.string.permission_overlay_desc,
                     granted = permissionManager.canDrawOverlays(),
                     isOverlay = true
+                )
+            )
+            add(
+                PermissionItem(
+                    key = "notification_access",
+                    titleRes = R.string.permission_notif_access_title,
+                    descRes = R.string.permission_notif_access_desc,
+                    granted = permissionManager.isNotificationAccessGranted(),
+                    isNotificationAccess = true,
+                    optional = true
                 )
             )
         }

@@ -67,6 +67,11 @@ fun PermissionsScreen(
         overlayLauncher.launch(intent)
     }
 
+    fun requestNotificationAccess() {
+        // Opens the system "Notification access" list; the user enables CRM Connector.
+        overlayLauncher.launch(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
             Text(
@@ -90,7 +95,14 @@ fun PermissionsScreen(
                         title = stringResource(item.titleRes),
                         description = stringResource(item.descRes),
                         granted = item.granted,
-                        onGrant = { if (item.isOverlay) requestOverlay() else requestRuntime() }
+                        optional = item.optional,
+                        onGrant = {
+                            when {
+                                item.isOverlay -> requestOverlay()
+                                item.isNotificationAccess -> requestNotificationAccess()
+                                else -> requestRuntime()
+                            }
+                        }
                     )
                 }
             }
@@ -120,6 +132,7 @@ private fun PermissionRow(
     title: String,
     description: String,
     granted: Boolean,
+    optional: Boolean = false,
     onGrant: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -128,7 +141,10 @@ private fun PermissionRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = if (optional) "$title (optional)" else title,
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = description,

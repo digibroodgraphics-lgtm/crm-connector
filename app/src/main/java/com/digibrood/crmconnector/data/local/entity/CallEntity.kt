@@ -28,6 +28,10 @@ data class CallEntity(
     val duration: Long,
     val callType: String,
     val hasRecording: Boolean = false,
+    /** Non-null for VoIP/app calls (e.g. "com.whatsapp"); null for normal PSTN calls. */
+    val platform: String? = null,
+    /** Display name for VoIP calls (which have no phone number). */
+    val displayName: String? = null,
     /** PENDING, SYNCING, SYNCED, FAILED */
     val syncState: String = SyncState.PENDING,
     val attemptCount: Int = 0,

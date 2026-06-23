@@ -44,5 +44,6 @@ data class RefreshResponse(
  */
 data class ApiError(
     @Json(name = "code") val errorCode: String? = null,
-    @Json(name = "message") val message: String? = null
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "action") val action: String? = null
 )

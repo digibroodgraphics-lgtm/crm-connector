@@ -68,6 +68,10 @@ generic assumptions.**
   start_time (ISO-8601 w/ offset), end_time (ISO-8601), duration (seconds), has_recording}`
   → `{ok, results:[{client_call_id, call_id, status:"stored", contact_id}]}`. A bad item
   returns `status:"rejected", reason:"missing phone"`.
+  **VoIP/app calls (D6):** send the SAME endpoint with `{client_call_id, platform (e.g. "com.whatsapp"
+  or "whatsapp"), name (display name), call_type/direction, started_at, ended_at, duration,
+  has_recording:false}` and OMIT number/phone. The CRM matches/creates the contact by name, tags it
+  with the platform, and returns `{status:"stored", contact_id, platform}`. No recording for VoIP.
 - **GET /contacts/lookup?phone=...** → `{ok, found, name, company, status, country, contact:{...}}`
   (name/company both top-level AND nested under `contact`). ⚠️ param is **`phone`** (not phone_number).
 - **POST /calls/remark** `{device_id, client_call_id, phone, call_type, name, company, remark, status}`
@@ -164,9 +168,15 @@ Key behaviors:
   caller-ID name cached in the call log (CACHED_NAME) by apps like **Truecaller**. The name is
   editable and only saved to the CRM when the user taps Save. Best-effort: the Truecaller name
   depends on Truecaller writing CACHED_NAME on that device/dialer.
-- VoIP/WhatsApp calls: NOT captured yet (D6). Only PSTN calls (system call log) are captured.
-  Capturing WhatsApp/Messenger/etc. would need a NotificationListenerService (Notification Access)
-  and a CRM decision on representing numberless VoIP calls — scheduled as a follow-up.
+- VoIP/WhatsApp calls: **now captured (best-effort, D6)** via `VoipCallListenerService`
+  (NotificationListenerService). It watches CALL-style notifications from a curated package list
+  (Constants.VOIP_PACKAGES: WhatsApp, Telegram, Signal, Messenger, Instagram, Skype, Viber, Meet,
+  Zoom, Botim), records start on post + end on removal, and enqueues a VoIP call (platform=package,
+  display name, no number) via `CallRepository.enqueueVoipCall` → `/calls/sync`. Requires the user
+  to grant **Notification Access** (optional row on the permissions screen). Limitations: direction
+  can't be derived reliably, so connected VoIP calls are logged as "incoming"; VoIP audio cannot be
+  recorded on modern Android. Never blocks the PSTN flow. VoIP rows are excluded from recording
+  backfill/whitelist (no number).
 - Dashboard: status, connection, registered number, calls synced today, last synced
   number, recordings uploaded today, pending queue, last sync. Diagnostics behind a toggle.
 
@@ -206,9 +216,12 @@ Key behaviors:
 
 ### Session-logout codes (confirmed with CRM dev)
 - `401 TOKEN_EXPIRED` / `401 INVALID_TOKEN` / `401 NO_TOKEN` → `TokenAuthenticator` recovery ladder:
-  (1) refresh the access token with the saved refresh_token and retry; (2) if refresh fails (e.g.
-  server redeploy rotated secrets), **silently re-login** with the encrypted stored credentials and
-  retry. Syncing never visibly stops on a token error.
+  it reads the CRM's `code` and `action` hint — `action:"refresh"`/TOKEN_EXPIRED refreshes first;
+  `action:"reauth"`/INVALID_TOKEN/NO_TOKEN skips straight to a **silent re-login** with the encrypted
+  stored credentials; then retries. If recovery fails AND no stored credentials exist (e.g. upgraded
+  from an old build), it routes to Login. Syncing never visibly stops on a token error.
+- Tags/Status dropdowns are persisted (SecurePrefs) so they always show in the popup even before a
+  fresh `/meta` fetch / during a token outage.
 - `403 APP_LOGIN_DISABLED` (account disabled) and `403 DEVICE_REVOKED` (device revoked) →
   the `SessionGuardInterceptor` clears tokens and routes to Login. These are the ONLY two
   logout conditions.

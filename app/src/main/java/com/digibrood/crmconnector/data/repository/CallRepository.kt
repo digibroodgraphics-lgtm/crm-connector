@@ -189,6 +189,51 @@ class CallRepository @Inject constructor(
     }
 
     /**
+     * Enqueues a VoIP / app call (WhatsApp, Telegram, etc.) detected from a call
+     * notification. These have no phone number; the CRM matches/creates the
+     * contact by [name] and tags it with [platform]. A stable client_call_id is
+     * derived from platform+name+start+type so repeated detections de-dupe.
+     *
+     * @return the client_call_id queued, or null if skipped (not approved /
+     *         before activation / duplicate).
+     */
+    suspend fun enqueueVoipCall(
+        platform: String,
+        name: String?,
+        callType: String,
+        startTime: Long,
+        endTime: Long
+    ): String? = withContext(Dispatchers.IO) {
+        val status = DeviceStatus.fromApi(prefs.deviceStatus)
+        val activatedAt = prefs.activatedAtEpochMs
+        if (status != DeviceStatus.APPROVED || activatedAt <= 0L) return@withContext null
+        // Activation-forward only.
+        if (endTime <= activatedAt) return@withContext null
+
+        val startSec = startTime / 1000L
+        val clientCallId = "voip-" + UUID.nameUUIDFromBytes(
+            "$platform|${name.orEmpty()}|$startSec|$callType".toByteArray()
+        ).toString()
+        if (callDao.getByClientId(clientCallId) != null) return@withContext null
+
+        val durationSec = ((endTime - startTime).coerceAtLeast(0L)) / 1000L
+        val rowId = callDao.insert(
+            CallEntity(
+                clientCallId = clientCallId,
+                phoneNumber = "",
+                startTime = startTime,
+                endTime = endTime,
+                duration = durationSec,
+                callType = callType,
+                hasRecording = false,
+                platform = platform,
+                displayName = name?.takeIf { it.isNotBlank() }
+            )
+        )
+        if (rowId != -1L) clientCallId else null
+    }
+
+    /**
      * Syncs all pending calls to the CRM — ONE call per request (the format the
      * CRM accepts). A call is marked synced when the CRM stores it; a per-call
      * "rejected" result is treated as terminal (so it doesn't clog the queue) but
@@ -309,11 +354,14 @@ class CallRepository @Inject constructor(
         val type = CallType.fromApi(callType).apiValue
         val startIso = TimeUtils.toIso8601(startTime)
         val endIso = TimeUtils.toIso8601(endTime)
+        val isVoip = !platform.isNullOrBlank()
         return CallSyncRequest(
             deviceId = deviceId,
             clientCallId = clientCallId,
-            phone = phoneNumber,
-            number = phoneNumber,
+            // VoIP/app calls have no phone number — send name + platform instead.
+            phone = if (isVoip) null else phoneNumber,
+            number = if (isVoip) null else phoneNumber,
+            name = displayName,
             callType = type,
             direction = type,
             startTime = startIso,
@@ -322,6 +370,7 @@ class CallRepository @Inject constructor(
             endedAt = endIso,
             duration = duration,
             hasRecording = hasRecording,
+            platform = platform,
             note = note,
             status = status,
             tags = tags,

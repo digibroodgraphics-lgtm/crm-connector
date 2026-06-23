@@ -79,6 +79,9 @@
     <string name="permission_notifications_desc">Shows the persistent sync notification and upload progress.</string>
     <string name="permission_overlay_title">Display over other apps</string>
     <string name="permission_overlay_desc">Shows the after-call popup so you can add a remark right away.</string>
+    <string name="permission_notif_access_title">Notification access</string>
+    <string name="permission_notif_access_desc">Optional. Lets the app log calls from WhatsApp and other calling apps (these do not appear in your normal call log). No audio is recorded.</string>
+    <string name="voip_listener_label">CRM Connector call logging</string>
     <string name="action_grant">Grant</string>
     <string name="action_granted">Granted</string>
     <string name="action_continue">Continue</string>

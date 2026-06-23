@@ -11,8 +11,9 @@ import com.squareup.moshi.Json
 data class CallSyncRequest(
     @Json(name = "device_id") val deviceId: String,
     @Json(name = "client_call_id") val clientCallId: String,
-    @Json(name = "phone") val phone: String,
-    @Json(name = "number") val number: String,
+    @Json(name = "phone") val phone: String? = null,
+    @Json(name = "number") val number: String? = null,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "call_type") val callType: String,
     @Json(name = "direction") val direction: String,
     @Json(name = "start_time") val startTime: String,

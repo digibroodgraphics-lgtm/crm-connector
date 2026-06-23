@@ -78,6 +78,18 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Best-effort VoIP/app call logging via notification access (WhatsApp, etc.) -->
+        <service
+            android:name=".service.VoipCallListenerService"
+            android:enabled="true"
+            android:exported="false"
+            android:label="@string/voip_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Captures incoming/outgoing call state changes -->
         <receiver
             android:name=".receiver.CallReceiver"

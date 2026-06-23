@@ -44,6 +44,26 @@ object Constants {
     val SUPPORTED_RECORDING_EXTENSIONS = listOf("mp3", "m4a", "wav", "amr", "3gp", "ogg")
 
     /**
+     * Apps whose call notifications we attempt to log as VoIP calls (D6, best-effort).
+     * The package name is sent as the `platform`; the CRM normalises it to a label.
+     */
+    val VOIP_PACKAGES = setOf(
+        "com.whatsapp",                       // WhatsApp
+        "com.whatsapp.w4b",                   // WhatsApp Business
+        "org.telegram.messenger",             // Telegram
+        "org.telegram.plus",                  // Telegram fork
+        "org.thoughtcrime.securesms",         // Signal
+        "com.facebook.orca",                  // Messenger
+        "com.facebook.mlite",                 // Messenger Lite
+        "com.instagram.android",              // Instagram
+        "com.skype.raider",                   // Skype
+        "com.viber.voip",                     // Viber
+        "com.google.android.apps.tachyon",    // Google Meet / Duo
+        "us.zoom.videomeetings",              // Zoom
+        "im.tu.botim"                         // Botim
+    )
+
+    /**
      * Runtime permissions that must be granted before any sync work begins.
      * The list adapts to the running Android version because the storage and
      * notification permission model changed across releases.

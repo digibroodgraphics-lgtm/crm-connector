@@ -38,8 +38,12 @@ class TokenAuthenticator @Inject constructor(
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {
+        val error = parseError(response)
+        val code = error?.errorCode
+        val action = error?.action
+
         // Explicit "mobile login disabled" -> end the session.
-        if (parseErrorCode(response).equals("APP_LOGIN_DISABLED", ignoreCase = true)) {
+        if (code.equals("APP_LOGIN_DISABLED", ignoreCase = true)) {
             prefs.clearTokensForReauth()
             return null
         }
@@ -50,21 +54,38 @@ class TokenAuthenticator @Inject constructor(
         val attemptedToken = response.request.header("Authorization")
             ?.removePrefix("Bearer ")?.trim()
 
+        // The CRM signals what to do: action="reauth" (INVALID_TOKEN/NO_TOKEN) means
+        // the stored token can't be refreshed and we must log in again; action="refresh"
+        // (TOKEN_EXPIRED) means refresh first. Fall back across both regardless.
+        val reauthOnly = action.equals("reauth", ignoreCase = true) ||
+            code.equals("INVALID_TOKEN", ignoreCase = true) ||
+            code.equals("NO_TOKEN", ignoreCase = true)
+
         val newAccessToken: String? = synchronized(this) {
             val current = prefs.accessToken
             // Another thread may have already refreshed the token.
             if (!current.isNullOrBlank() && current != attemptedToken) {
                 current
             } else {
-                // 1) Try refresh with the saved refresh token.
-                val refreshToken = prefs.refreshToken
-                val refreshed = if (!refreshToken.isNullOrBlank()) refreshBlocking(refreshToken) else null
+                // 1) For refreshable errors, try refresh with the saved refresh token.
+                val refreshed = if (!reauthOnly) {
+                    val refreshToken = prefs.refreshToken
+                    if (!refreshToken.isNullOrBlank()) refreshBlocking(refreshToken) else null
+                } else {
+                    null
+                }
                 // 2) Fall back to a silent re-login with stored credentials.
                 refreshed ?: reloginBlocking()
             }
         }
 
-        if (newAccessToken.isNullOrBlank()) return null
+        if (newAccessToken.isNullOrBlank()) {
+            // Couldn't recover. If there are no stored credentials to re-login with
+            // (e.g. upgraded from an old build), route to the login screen so the
+            // user can sign in once; otherwise keep the session and let it retry.
+            if (!prefs.hasSavedCredentials) prefs.clearTokensForReauth()
+            return null
+        }
 
         return response.request.newBuilder()
             .header("Authorization", "Bearer $newAccessToken")
@@ -112,10 +133,10 @@ class TokenAuthenticator @Inject constructor(
         }
     }
 
-    private fun parseErrorCode(response: Response): String? {
+    private fun parseError(response: Response): ApiError? {
         return try {
             val raw = response.peekBody(2048).string()
-            if (raw.isBlank()) null else moshi.adapter(ApiError::class.java).fromJson(raw)?.errorCode
+            if (raw.isBlank()) null else moshi.adapter(ApiError::class.java).fromJson(raw)
         } catch (t: Throwable) {
             null
         }
