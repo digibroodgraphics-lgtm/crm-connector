@@ -1,5 +1,7 @@
 package com.digibrood.crmconnector.ui.screens.dashboard
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -81,6 +84,48 @@ fun DashboardScreen(
         ) {
             StatusBanner(status = state.status)
             Spacer(Modifier.height(16.dp))
+
+            if (!state.batteryExempt) {
+                val context = LocalContext.current
+                val batteryLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) { viewModel.refresh() }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = StatusAmber.copy(alpha = 0.15f))
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Warning, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.size(8.dp))
+                            Text("Allow background activity", fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "Battery optimisation is ON for this app. Samsung may put it to sleep and miss calls. Tap Fix and choose \"Allow\" / \"Don't optimise\".",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                android.net.Uri.parse("package:${context.packageName}")
+                            )
+                            runCatching { batteryLauncher.launch(intent) }.onFailure {
+                                runCatching {
+                                    batteryLauncher.launch(
+                                        android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                    )
+                                }
+                            }
+                        }) {
+                            Text("Fix")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
 
             InfoCard(
                 label = stringResource(R.string.status_connection),

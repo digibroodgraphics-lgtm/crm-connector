@@ -170,6 +170,11 @@ Key behaviors:
   (incoming), incoming-not-answered/rejected (missed, no popup), and outgoing answered-or-not
   (outgoing). The call is queued BEFORE the popup shows, so dismissing the popup never drops it.
   A WorkManager call-log scan remains as a safety net; both paths de-dupe by number within ~2 min.
+- **Reliability on Samsung:** the dashboard shows a "Allow background activity" card with a one-tap
+  Fix when the app is NOT exempt from battery optimisation (Samsung sleeps the app and the call
+  receiver/foreground service stop, missing calls). `PermissionManager.isIgnoringBatteryOptimizations()`.
+- **Call-log reader** uses the Android 11+ query Bundle (QUERY_ARG_SORT_DIRECTION + QUERY_ARG_LIMIT),
+  which Samsung honours, instead of a sort/LIMIT string it ignored (which yielded stale/oldest rows).
 - After-call popup name pre-fill (unknown numbers): shows instantly from device contacts /
   caller-ID (Truecaller) cached name, then the CRM lookup refines it. A blank CRM name falls
   through to the device name. Editable; only saved to the CRM on Save.

@@ -35,6 +35,18 @@ class PermissionManager @Inject constructor(
     fun isNotificationAccessGranted(): Boolean =
         NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
 
+    /**
+     * True when the app is exempt from battery optimisation. On Samsung (and other
+     * aggressive OEMs) battery optimisation puts the app to "sleep" and stops the
+     * call receiver/foreground service from running, so calls get missed. Strongly
+     * recommended for reliable capture.
+     */
+    fun isIgnoringBatteryOptimizations(): Boolean {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            ?: return true
+        return pm.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
     /** Notifications are only a runtime permission on Android 13+. */
     fun areNotificationsAllowed(): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

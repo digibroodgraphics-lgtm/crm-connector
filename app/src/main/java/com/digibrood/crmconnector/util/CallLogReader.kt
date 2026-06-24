@@ -47,7 +47,7 @@ class CallLogReader @Inject constructor(
         return query(
             selection = "${CallLog.Calls.DATE} > ?",
             selectionArgs = arrayOf(sinceMillis.toString()),
-            sortOrder = "${CallLog.Calls.DATE} ASC",
+            descending = false,
             limit = limit
         )
     }
@@ -58,7 +58,7 @@ class CallLogReader @Inject constructor(
         return query(
             selection = null,
             selectionArgs = null,
-            sortOrder = "${CallLog.Calls.DATE} DESC",
+            descending = true,
             limit = 1
         ).firstOrNull()
     }
@@ -104,7 +104,7 @@ class CallLogReader @Inject constructor(
     private fun query(
         selection: String?,
         selectionArgs: Array<String>?,
-        sortOrder: String,
+        descending: Boolean,
         limit: Int
     ): List<CapturedCall> {
         val projection = arrayOf(
@@ -115,25 +115,20 @@ class CallLogReader @Inject constructor(
         )
         val results = mutableListOf<CapturedCall>()
         try {
-            context.contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-            )?.use { cursor ->
-                val numberIdx = cursor.getColumnIndex(CallLog.Calls.NUMBER)
-                val dateIdx = cursor.getColumnIndex(CallLog.Calls.DATE)
-                val durationIdx = cursor.getColumnIndex(CallLog.Calls.DURATION)
-                val typeIdx = cursor.getColumnIndex(CallLog.Calls.TYPE)
+            val cursor = openCursor(projection, selection, selectionArgs, descending, limit)
+            cursor?.use {
+                val numberIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
+                val dateIdx = it.getColumnIndex(CallLog.Calls.DATE)
+                val durationIdx = it.getColumnIndex(CallLog.Calls.DURATION)
+                val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
                 if (numberIdx < 0 || dateIdx < 0 || durationIdx < 0 || typeIdx < 0) {
                     return emptyList()
                 }
-                while (cursor.moveToNext() && results.size < limit) {
-                    val number = cursor.getString(numberIdx) ?: continue
-                    val date = cursor.getLong(dateIdx)
-                    val durationSec = cursor.getLong(durationIdx)
-                    val type = cursor.getInt(typeIdx)
+                while (it.moveToNext() && results.size < limit) {
+                    val number = it.getString(numberIdx) ?: continue
+                    val date = it.getLong(dateIdx)
+                    val durationSec = it.getLong(durationIdx)
+                    val type = it.getInt(typeIdx)
                     results.add(
                         CapturedCall(
                             phoneNumber = PhoneUtils.normalize(number),
@@ -149,5 +144,45 @@ class CallLogReader @Inject constructor(
             // Provider quirk / revoked permission mid-read — return what we have.
         }
         return results
+    }
+
+    /**
+     * Opens the call-log cursor. On Android 11+ uses the query Bundle
+     * (QUERY_ARG_SORT_DIRECTION + QUERY_ARG_LIMIT), which OEM providers (Samsung)
+     * honour reliably — unlike a "LIMIT"/sort string in the legacy sortOrder arg,
+     * which Samsung either rejects or ignores (previously yielding stale/oldest
+     * rows). Falls back to the legacy form on older versions.
+     */
+    private fun openCursor(
+        projection: Array<String>,
+        selection: String?,
+        selectionArgs: Array<String>?,
+        descending: Boolean,
+        limit: Int
+    ) = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        val args = android.os.Bundle().apply {
+            if (selection != null) {
+                putString(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+                if (selectionArgs != null) {
+                    putStringArray(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs)
+                }
+            }
+            putStringArray(
+                android.content.ContentResolver.QUERY_ARG_SORT_COLUMNS,
+                arrayOf(CallLog.Calls.DATE)
+            )
+            putInt(
+                android.content.ContentResolver.QUERY_ARG_SORT_DIRECTION,
+                if (descending) android.content.ContentResolver.QUERY_SORT_DIRECTION_DESCENDING
+                else android.content.ContentResolver.QUERY_SORT_DIRECTION_ASCENDING
+            )
+            putInt(android.content.ContentResolver.QUERY_ARG_LIMIT, limit)
+        }
+        context.contentResolver.query(CallLog.Calls.CONTENT_URI, projection, args, null)
+    } else {
+        val order = "${CallLog.Calls.DATE} ${if (descending) "DESC" else "ASC"}"
+        context.contentResolver.query(
+            CallLog.Calls.CONTENT_URI, projection, selection, selectionArgs, order
+        )
     }
 }
