@@ -50,6 +50,8 @@ data class DashboardUiState(
     val diagCallsVisible: Int = 0,
     val diagCallsAfterActivation: Int = 0,
     val diagLatestCall: String = "-",
+    val diagCapturedByApp: Int = 0,
+    val diagLastCapturedCall: String = "-",
     val diagLastCrash: String? = null,
     val diagDeviceId: String = "-",
     val diagLastSyncResult: String = "-"
@@ -154,6 +156,14 @@ class DashboardViewModel @Inject constructor(
                 ?.let { cid -> runCatching { recordingRepository.traceRecordingStatus(cid) }.getOrNull() }
                 ?: "-"
 
+            // App-captured truth (independent of the OEM call log, which can be stale).
+            val capturedByApp = runCatching { callRepository.capturedSinceCount(activatedAt) }.getOrDefault(0)
+            val lastCaptured = runCatching { callRepository.mostRecentCaptured() }.getOrNull()
+            val lastCapturedStr = lastCaptured?.let { c ->
+                val who = c.displayName?.takeIf { it.isNotBlank() } ?: c.phoneNumber
+                "${who.ifBlank { "?" }} · ${TimeUtils.formatReadable(c.startTime) ?: "-"}"
+            } ?: "none yet"
+
             _state.update {
                 it.copy(
                     status = status,
@@ -172,6 +182,8 @@ class DashboardViewModel @Inject constructor(
                     diagCallsVisible = visibleCalls.size,
                     diagCallsAfterActivation = afterActivation,
                     diagLatestCall = TimeUtils.formatReadable(latestCall) ?: "-",
+                    diagCapturedByApp = capturedByApp,
+                    diagLastCapturedCall = lastCapturedStr,
                     diagLastCrash = crashReporter.lastCrashSummary(),
                     diagDeviceId = deviceInfo.deviceId,
                     diagLastSyncResult = prefs.lastSyncResult ?: "-"

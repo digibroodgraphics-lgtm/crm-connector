@@ -56,6 +56,12 @@ class CallRepository @Inject constructor(
 
     suspend fun lastSyncedCall(): CallEntity? = withContext(Dispatchers.IO) { callDao.lastSyncedCall() }
 
+    /** Most recent call the APP captured (any state) — for honest diagnostics. */
+    suspend fun mostRecentCaptured(): CallEntity? = withContext(Dispatchers.IO) { callDao.mostRecentCaptured() }
+
+    /** Count of calls the APP captured after [since] — reflects real capture, not the OEM call log. */
+    suspend fun capturedSinceCount(since: Long): Int = withContext(Dispatchers.IO) { callDao.countCapturedSince(since) }
+
     /**
      * Captures calls that occurred after the device's activation time and after
      * the last captured call. Returns the number of new calls queued.

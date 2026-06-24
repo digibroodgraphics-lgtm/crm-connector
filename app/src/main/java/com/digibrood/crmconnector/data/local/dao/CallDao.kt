@@ -52,6 +52,12 @@ interface CallDao {
     @Query("SELECT MAX(startTime) FROM calls")
     suspend fun latestCapturedStartTime(): Long?
 
+    @Query("SELECT * FROM calls ORDER BY startTime DESC LIMIT 1")
+    suspend fun mostRecentCaptured(): CallEntity?
+
+    @Query("SELECT COUNT(*) FROM calls WHERE startTime > :since")
+    suspend fun countCapturedSince(since: Long): Int
+
     @Query("SELECT * FROM calls WHERE hasRecording = 0 AND platform IS NULL AND startTime >= :since ORDER BY startTime DESC LIMIT :limit")
     suspend fun callsWithoutRecordingSince(since: Long, limit: Int): List<CallEntity>
 
